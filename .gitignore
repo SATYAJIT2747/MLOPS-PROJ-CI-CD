@@ -218,3 +218,4 @@ __marimo__/
 .streamlit/secrets.toml
 cred.txt
 .env
+/local_s3
