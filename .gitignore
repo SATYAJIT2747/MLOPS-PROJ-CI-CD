@@ -219,3 +219,5 @@ __marimo__/
 cred.txt
 .env
 /local_s3
+/data
+/models
