@@ -11,28 +11,28 @@ import os
 from src.logger import logging
 
 
-# Below code block is for production use
+# Below code block is for production use (CI / non-interactive environments)
 # -------------------------------------------------------------------------------------
 # Set up DagsHub credentials for MLflow tracking
-# dagshub_token = os.getenv("CAPSTONE_TEST")
-# if not dagshub_token:
-#     raise EnvironmentError("CAPSTONE_TEST environment variable is not set")
+dagshub_token = os.getenv("CAPSTONE_TEST") or os.getenv("dagshub_token")
+if not dagshub_token:
+    raise EnvironmentError("CAPSTONE_TEST (or dagshub_token) environment variable is not set")
 
-# os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
-# os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
+os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
+os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
 
-# dagshub_url = "https://dagshub.com"
-# repo_owner = "vikashdas770"
-# repo_name = "YT-Capstone-Project"
+dagshub_url = "https://dagshub.com"
+repo_owner = "satyagudu1146"
+repo_name = "MLOPS-PROJ-CI-CD"
 
-# # Set up MLflow tracking URI
-# mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
-# # -------------------------------------------------------------------------------------
-
-# Below code block is for local use
+# Set up MLflow tracking URI
+mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
 # -------------------------------------------------------------------------------------
-mlflow.set_tracking_uri("https://dagshub.com/satyagudu1146/MLOPS-PROJ-CI-CD.mlflow")
-dagshub.init(repo_owner="satyagudu1146", repo_name='MLOPS-PROJ-CI-CD', mlflow=True)
+
+# Below code block is for local interactive use only (triggers browser OAuth if no token cached)
+# -------------------------------------------------------------------------------------
+# mlflow.set_tracking_uri("https://dagshub.com/satyagudu1146/MLOPS-PROJ-CI-CD.mlflow")
+# dagshub.init(repo_owner="satyagudu1146", repo_name='MLOPS-PROJ-CI-CD', mlflow=True)
 # -------------------------------------------------------------------------------------
 
 
@@ -113,30 +113,30 @@ def main():
         try:
             clf = load_model('./models/model.pkl')
             test_data = load_data('./data/processed/test_tfidf.csv')
-            
+
             X_test = test_data.iloc[:, :-1].values
             y_test = test_data.iloc[:, -1].values
 
             metrics = evaluate_model(clf, X_test, y_test)
-            
+
             save_metrics(metrics, 'reports/metrics.json')
-            
+
             # Log metrics to MLflow
             for metric_name, metric_value in metrics.items():
                 mlflow.log_metric(metric_name, metric_value)
-            
+
             # Log model parameters to MLflow
             if hasattr(clf, 'get_params'):
                 params = clf.get_params()
                 for param_name, param_value in params.items():
                     mlflow.log_param(param_name, param_value)
-            
+
             # Log model to MLflow
             mlflow.sklearn.log_model(clf, "model")
-            
+
             # Save model info
             save_model_info(run.info.run_id, "model", 'reports/experiment_info.json')
-            
+
             # Log the metrics file to MLflow
             mlflow.log_artifact('reports/metrics.json')
 
