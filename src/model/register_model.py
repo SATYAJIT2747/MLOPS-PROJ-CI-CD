@@ -11,28 +11,29 @@ import warnings
 warnings.simplefilter("ignore", UserWarning)
 warnings.filterwarnings("ignore")
 
-# Below code block is for production use
+# Below code block is for production use (CI / non-interactive environments)
 # -------------------------------------------------------------------------------------
 # Set up DagsHub credentials for MLflow tracking
-# dagshub_token = os.getenv("CAPSTONE_TEST")
-# if not dagshub_token:
-#     raise EnvironmentError("CAPSTONE_TEST environment variable is not set")
+dagshub_token = os.getenv("CAPSTONE_TEST") or os.getenv("dagshub_token")
+if not dagshub_token:
+    raise EnvironmentError("CAPSTONE_TEST (or dagshub_token) environment variable is not set")
 
-# os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
-# os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
+os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
+os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
 
-# dagshub_url = "https://dagshub.com"
-# repo_owner = "vikashdas770"
-# repo_name = "YT-Capstone-Project"
+dagshub_url = "https://dagshub.com"
+repo_owner = "satyagudu1146"
+repo_name = "MLOPS-PROJ-CI-CD"
+
 # Set up MLflow tracking URI
-# mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
+mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
 # -------------------------------------------------------------------------------------
 
 
-# Below code block is for local use
+# Below code block is for local interactive use only (triggers browser OAuth if no token cached)
 # -------------------------------------------------------------------------------------
-mlflow.set_tracking_uri("https://dagshub.com/satyagudu1146/MLOPS-PROJ-CI-CD.mlflow")
-dagshub.init(repo_owner='satyagudu1146', repo_name='MLOPS-PROJ-CI-CD', mlflow=True)
+# mlflow.set_tracking_uri("https://dagshub.com/satyagudu1146/MLOPS-PROJ-CI-CD.mlflow")
+# dagshub.init(repo_owner='satyagudu1146', repo_name='MLOPS-PROJ-CI-CD', mlflow=True)
 # -------------------------------------------------------------------------------------
 
 
@@ -54,10 +55,10 @@ def register_model(model_name: str, model_info: dict):
     """Register the model to the MLflow Model Registry."""
     try:
         model_uri = f"runs:/{model_info['run_id']}/{model_info['model_path']}"
-        
+
         # Register the model
         model_version = mlflow.register_model(model_uri, model_name)
-        
+
         # Transition the model to "Staging" stage
         client = mlflow.tracking.MlflowClient()
         client.transition_model_version_stage(
@@ -65,7 +66,7 @@ def register_model(model_name: str, model_info: dict):
             version=model_version.version,
             stage="Staging"
         )
-        
+
         logging.debug(f'Model {model_name} version {model_version.version} registered and transitioned to Staging.')
     except Exception as e:
         logging.error('Error during model registration: %s', e)
@@ -75,7 +76,7 @@ def main():
     try:
         model_info_path = 'reports/experiment_info.json'
         model_info = load_model_info(model_info_path)
-        
+
         model_name = "my_model"
         register_model(model_name, model_info)
     except Exception as e:
@@ -84,4 +85,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
