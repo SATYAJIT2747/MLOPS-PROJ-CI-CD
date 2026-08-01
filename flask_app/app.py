@@ -67,27 +67,28 @@ def normalize_text(text):
 
     return text
 
-# Below code block is for local use
-# -------------------------------------------------------------------------------------
-mlflow.set_tracking_uri('https://dagshub.com/satyagudu1146/MLOPS-PROJ-CI-CD.mlflow')
-dagshub.init(repo_owner='satyagudu1146', repo_name='MLOPS-PROJ-CI-CD', mlflow=True)
-# -------------------------------------------------------------------------------------
-
-# Below code block is for production use
+# Below code block is for production use (CI / non-interactive environments)
 # -------------------------------------------------------------------------------------
 # Set up DagsHub credentials for MLflow tracking
-# dagshub_token = os.getenv("CAPSTONE_TEST")
-# if not dagshub_token:
-#     raise EnvironmentError("CAPSTONE_TEST environment variable is not set")
+dagshub_token = os.getenv("CAPSTONE_TEST") or os.getenv("dagshub_token")
+if not dagshub_token:
+    raise EnvironmentError("CAPSTONE_TEST (or dagshub_token) environment variable is not set")
 
-# os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
-# os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
+os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
+os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
 
-# dagshub_url = "https://dagshub.com"
-# repo_owner = "vikashdas770"
-# repo_name = "YT-Capstone-Project"
-# # Set up MLflow tracking URI
-# mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
+dagshub_url = "https://dagshub.com"
+repo_owner = "satyagudu1146"
+repo_name = "MLOPS-PROJ-CI-CD"
+
+# Set up MLflow tracking URI
+mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
+# -------------------------------------------------------------------------------------
+
+# Below code block is for local interactive use only (triggers browser OAuth if no token cached)
+# -------------------------------------------------------------------------------------
+# mlflow.set_tracking_uri('https://dagshub.com/satyagudu1146/MLOPS-PROJ-CI-CD.mlflow')
+# dagshub.init(repo_owner='satyagudu1146', repo_name='MLOPS-PROJ-CI-CD', mlflow=True)
 # -------------------------------------------------------------------------------------
 
 
