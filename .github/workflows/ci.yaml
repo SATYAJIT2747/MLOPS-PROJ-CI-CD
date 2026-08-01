@@ -25,7 +25,7 @@ jobs:
 
       - name: install dependencies
         run: |
-          pip install -r C:\Users\Satyajit\Desktop\MLOPS\MLOPS-PROJ-CI-CD\flask_app\requirements.txt
+          pip install -r flask_app\requirements.txt
 
       - name: run pipeline
         run: |
