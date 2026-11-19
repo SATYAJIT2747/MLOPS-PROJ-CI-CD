@@ -1,0 +1,1225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sentiment MLOps: Interview Guide</title>
+<meta name="description" content="End-to-end guide to a sentiment analysis MLOps project: TF-IDF and logistic regression from zero, DVC, MLflow, tests, GitHub Actions, Docker, AWS EKS, Prometheus, Grafana and interview questions.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Colour carries meaning: violet = language model, teal = solver / fixed code, amber = human. */
+:root {
+  --bg: #f7f6fb; --surface: #ffffff; --sunk: #efedf6; --fg: #1d1b2b; --muted: #5c5970; --line: #dcd8ea;
+  --llm: #6b4fc7; --llm-soft: #ece7fb; --solver: #0f7a6c; --solver-soft: #e1f3ef;
+  --human: #b26a00; --human-soft: #fbefdc; --bad: #b3263a; --bad-soft: #fbe5e8;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15141d; --surface: #1d1c27; --sunk: #252334; --fg: #ecebf3; --muted: #a9a6bd; --line: #353247;
+    --llm: #b6a2ff; --llm-soft: #2d2648; --solver: #5fd0bd; --solver-soft: #173431;
+    --human: #f0b55a; --human-soft: #3a2c15; --bad: #ff8a9a; --bad-soft: #3d1d24; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15141d; --surface: #1d1c27; --sunk: #252334; --fg: #ecebf3; --muted: #a9a6bd; --line: #353247;
+  --llm: #b6a2ff; --llm-soft: #2d2648; --solver: #5fd0bd; --solver-soft: #173431;
+  --human: #f0b55a; --human-soft: #3a2c15; --bad: #ff8a9a; --bad-soft: #3d1d24; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16.5px; line-height: 1.65; }
+[hidden] { display: none !important; }
+.wrap { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 48px; max-width: 1200px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 80px; }
+nav.toc { position: sticky; top: 20px; align-self: start; max-height: calc(100vh - 40px); overflow-y: auto; font-size: 14px; }
+nav.toc .brand { font-family: var(--font-display); font-weight: 700; font-size: 17px; line-height: 1.25; margin-bottom: 14px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+nav.toc li.part { margin-top: 14px; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+nav.toc a { color: var(--fg); text-decoration: none; display: block; padding: 3px 8px; border-radius: 6px; }
+nav.toc a:hover, nav.toc a:focus-visible { background: var(--sunk); outline: none; }
+nav.toc details > summary { cursor: pointer; font-weight: 600; padding: 2px 0; }
+main { min-width: 0; }
+.hero { padding-bottom: 28px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.eyebrow { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+h1 { font-family: var(--font-display); font-size: clamp(30px, 5vw, 44px); line-height: 1.1; margin: 8px 0 12px; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-size: 27px; line-height: 1.2; margin: 0 0 6px; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-size: 20px; margin: 28px 0 6px; text-wrap: balance; }
+h4 { font-size: 16px; margin: 18px 0 4px; }
+p, li { max-width: 72ch; }
+p { margin: 10px 0; }
+ul, ol { padding-left: 22px; }
+li { margin: 4px 0; }
+section { padding-top: 44px; scroll-margin-top: 12px; }
+.part-head { margin-top: 56px; padding: 20px 22px; border-radius: 14px; background: var(--sunk); scroll-margin-top: 12px; }
+.part-head .eyebrow { color: var(--llm); }
+.part-head h2 { font-size: 31px; }
+.part-head p { margin: 4px 0 0; color: var(--muted); }
+.lede { font-size: 18px; color: var(--muted); max-width: 64ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; font-size: 14px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-weight: 500; font-size: 14px; white-space: nowrap; }
+.chip.llm { background: var(--llm-soft); color: var(--llm); }
+.chip.solver { background: var(--solver-soft); color: var(--solver); }
+.chip.human { background: var(--human-soft); color: var(--human); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.llm-t { color: var(--llm); font-weight: 600; } .solver-t { color: var(--solver); font-weight: 600; } .human-t { color: var(--human); font-weight: 600; }
+.box { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 14px 18px; margin: 16px 0; }
+.box.analogy { border-left: 4px solid var(--human); }
+.box.key { border-left: 4px solid var(--solver); }
+.box.say { border-left: 4px solid var(--llm); }
+.box.warn { border-left: 4px solid var(--bad); }
+.box .tag { font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--muted); display: block; margin-bottom: 2px; }
+.box p:first-of-type { margin-top: 2px; } .box p:last-child { margin-bottom: 2px; }
+code, .mono { font-family: var(--font-mono); font-size: .88em; }
+code { background: var(--sunk); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--sunk); border-radius: 10px; padding: 12px 14px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; margin: 12px 0; }
+pre code { background: none; padding: 0; overflow-wrap: normal; }
+.scroll { overflow-x: auto; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; background: var(--surface); }
+th, td { text-align: left; padding: 8px 11px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--sunk); }
+td.num, th.num { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+td.num { font-weight: 600; }
+.flow { display: grid; gap: 10px; margin: 18px 0; }
+.stage { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.stage .name { font-family: var(--font-display); font-weight: 700; font-size: 16px; }
+.stage .steps { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.stage p { margin: 6px 0 0; font-size: 15px; color: var(--muted); }
+.down { text-align: center; color: var(--muted); font-size: 18px; line-height: 1; margin: -4px 0; }
+.num-list { counter-reset: n; list-style: none; padding: 0; display: grid; gap: 10px; }
+.num-list > li { counter-increment: n; position: relative; padding-left: 40px; }
+.num-list > li::before { content: counter(n); position: absolute; left: 0; top: 1px; width: 28px; height: 28px; border-radius: 50%; background: var(--sunk); font-family: var(--font-display); font-weight: 700; display: grid; place-items: center; font-size: 14px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 16px 0; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.stat b { display: block; font-family: var(--font-display); font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 14px; color: var(--muted); }
+.stat.llm b { color: var(--llm); } .stat.solver b { color: var(--solver); } .stat.human b { color: var(--human); } .stat.bad b { color: var(--bad); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.two > .box { margin: 0; }
+details.q { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; margin: 8px 0; }
+details.q summary { cursor: pointer; padding: 11px 16px; font-weight: 600; list-style: none; display: flex; gap: 10px; }
+details.q summary::-webkit-details-marker { display: none; }
+details.q summary::before { content: "+"; color: var(--llm); font-family: var(--font-mono); font-weight: 700; flex: none; }
+details.q[open] summary::before { content: "\2212"; }
+details.q summary:focus-visible { outline: 2px solid var(--llm); outline-offset: 2px; border-radius: 10px; }
+details.q .a { padding: 0 16px 12px 36px; }
+details.q .a p { margin: 6px 0; }
+.qtools { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 2; }
+button { font: inherit; font-size: 14px; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+button:hover { background: var(--sunk); }
+button:focus-visible { outline: 2px solid var(--llm); outline-offset: 2px; }
+.diff { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; margin-left: auto; flex: none; align-self: center; }
+.diff.e { background: var(--solver-soft); color: var(--solver); }
+.diff.m { background: var(--human-soft); color: var(--human); }
+.diff.h { background: var(--bad-soft); color: var(--bad); }
+.qgroup { margin-top: 26px; font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+.file { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+footer { margin-top: 64px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 16px; }
+.themebtn { margin-top: 14px; }
+@media (max-width: 860px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 16px; }
+  nav.toc { position: static; max-height: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 18px; }
+  nav.toc ol.items { display: none; }
+  nav.toc details[open] ol.items { display: grid; }
+  .stage { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .two { grid-template-columns: minmax(0, 1fr); }
+  body { font-size: 16px; }
+  pre { font-size: 12.5px; }
+}
+</style>
+<style>
+.svgwrap { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin: 16px 0; overflow-x: auto; }
+.svgwrap svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.svgwrap text { fill: var(--fg); font-family: var(--font-body); }
+.svgwrap .mut { fill: var(--muted); }
+.qtools { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+.qtools button, .themebtn { font: inherit; font-size: 14px; padding: 5px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <div class="brand">Sentiment MLOps Pipeline<br><span style="font-weight:500;color:var(--muted);font-size:14px">End-to-end guide and interview prep</span></div>
+  <details open id="tocd"><summary>Contents</summary>
+  <ol class="items">
+    <li><a href="#start">Start here</a></li>
+    <li><a href="#pitch">0. Your pitch</a></li>
+    <li class="part">Part 1 · Data science from zero</li>
+    <li><a href="#b-mlops">1. What MLOps is</a></li>
+    <li><a href="#b-split">2. Splits, CV, leakage</a></li>
+    <li><a href="#b-clean">3. Text cleaning</a></li>
+    <li><a href="#b-tfidf">4. BoW and TF-IDF</a></li>
+    <li><a href="#b-logreg">5. Logistic regression</a></li>
+    <li><a href="#b-reg">6. Regularisation and C</a></li>
+    <li><a href="#b-metrics">7. Metrics, worked</a></li>
+    <li><a href="#b-uncert">8. How sure are we?</a></li>
+    <li class="part">Part 2 · The big picture</li>
+    <li><a href="#arch">9. Architecture</a></li>
+    <li><a href="#files">10. Every file</a></li>
+    <li><a href="#flow">11. One review, end to end</a></li>
+    <li class="part">Part 3 · The experiments</li>
+    <li><a href="#e1">12. Exp 1: baseline</a></li>
+    <li><a href="#e2">13. Exp 2: 10-run comparison</a></li>
+    <li><a href="#e3">14. Exp 3: grid search</a></li>
+    <li><a href="#e-honest">15. Reading results honestly</a></li>
+    <li class="part">Part 4 · The DVC pipeline, stage by stage</li>
+    <li><a href="#dvc">16. DVC from zero</a></li>
+    <li><a href="#stages">17. dvc.yaml stages</a></li>
+    <li><a href="#s-ingest">18. Ingestion</a></li>
+    <li><a href="#s-prep">19. Preprocessing</a></li>
+    <li><a href="#s-feat">20. Feature engineering</a></li>
+    <li><a href="#s-train">21. Model building</a></li>
+    <li><a href="#s-eval">22. Evaluation + MLflow</a></li>
+    <li><a href="#s-reg">23. Registration</a></li>
+    <li><a href="#s-logger">24. Logging and errors</a></li>
+    <li class="part">Part 5 · MLflow: tracking and the registry</li>
+    <li><a href="#mlflow">25. Experiment tracking</a></li>
+    <li><a href="#registry">26. Registry and promotion</a></li>
+    <li class="part">Part 6 · Testing: the quality gate</li>
+    <li><a href="#t-model">27. Model tests</a></li>
+    <li><a href="#t-app">28. Flask tests</a></li>
+    <li><a href="#t-better">29. A real quality gate</a></li>
+    <li class="part">Part 7 · Serving: Flask, Gunicorn and Docker</li>
+    <li><a href="#app">30. app.py walkthrough</a></li>
+    <li><a href="#skew">31. Training-serving skew</a></li>
+    <li><a href="#gunicorn">32. Gunicorn and workers</a></li>
+    <li><a href="#docker">33. Dockerfile</a></li>
+    <li class="part">Part 8 · CI/CD with GitHub Actions</li>
+    <li><a href="#ci">34. ci.yaml step by step</a></li>
+    <li><a href="#secrets">35. Secrets and auth</a></li>
+    <li><a href="#journey">36. The 22-run journey</a></li>
+    <li class="part">Part 9 · AWS and Kubernetes</li>
+    <li><a href="#k8s">37. Kubernetes from zero</a></li>
+    <li><a href="#deploy">38. deployment.yaml</a></li>
+    <li><a href="#ops">39. Probes, rollouts, HPA</a></li>
+    <li><a href="#aws">40. AWS and cost</a></li>
+    <li class="part">Part 10 · Monitoring</li>
+    <li><a href="#prom">41. Prometheus</a></li>
+    <li><a href="#grafana">42. Grafana and alerts</a></li>
+    <li><a href="#drift">43. Drift and accuracy</a></li>
+    <li class="part">Part 11 · Weak spots and code review</li>
+    <li><a href="#weak">44. Weak spots</a></li>
+    <li><a href="#redesign">45. Production redesign</a></li>
+    <li class="part">Part 12 · Practice</li>
+    <li><a href="#cmds">46. Commands</a></li>
+    <li><a href="#qa">47. Interview questions</a></li>
+    <li><a href="#cheat">48. Cheat sheet</a></li>
+  </ol>
+  </details>
+  <button class="themebtn" id="theme" type="button">Switch light / dark</button>
+</nav>
+
+<main>
+<header class="hero" id="start">
+  <div class="eyebrow">MLOps project · Python · interview guide</div>
+  <h1>Sentiment analysis, from notebook to a monitored service on Kubernetes</h1>
+  <p class="lede">An end-to-end MLOps project: experiments tracked in MLflow on DagsHub, a 6-stage DVC pipeline, a model registry with Staging and Production, tests as a quality gate, GitHub Actions CI/CD, a Docker image on AWS ECR, two pods on AWS EKS, and Prometheus + Grafana monitoring. This guide starts from zero (TF-IDF, logistic regression, metrics, uncertainty) and walks through every file, every pipeline stage, every CI step and every Kubernetes line, with the results, the bugs, the weak spots and the questions you'll be asked.</p>
+  <div class="legend">
+    <span class="chip llm">● Violet = model / data science</span>
+    <span class="chip solver">● Teal = pipeline / infrastructure</span>
+    <span class="chip human">● Amber = people, cost or a failure</span>
+  </div>
+  <div class="stats">
+    <div class="stat llm"><b>0.71 → 0.82</b><span>F1, baseline → tuned TF-IDF + LogReg</span></div>
+    <div class="stat solver"><b>6</b><span>DVC stages, data to registry</span></div>
+    <div class="stat human"><b>22</b><span>CI runs to a fully green pipeline</span></div>
+    <div class="stat solver"><b>2 pods</b><span>on AWS EKS behind a LoadBalancer</span></div>
+  </div>
+  <h3>How to use this guide</h3>
+  <ul>
+    <li><b>Day 1:</b> the pitch (§0) and the big picture (Part 2). Draw the architecture from memory.</li>
+    <li><b>Day 2:</b> Part 1 (fundamentals) and Part 3 (experiments). Explain TF-IDF and logistic regression to a friend in 3 sentences each.</li>
+    <li><b>Day 3:</b> Parts 4–9 (pipeline, registry, tests, serving, CI/CD, Kubernetes, monitoring).</li>
+    <li><b>Day 4:</b> Part 11 (weak spots and code review): this is what separates good candidates from great ones. Then §47 out loud.</li>
+    <li><b>Interview morning:</b> only the cheat sheet (§48).</li>
+  </ul>
+</header>
+
+<section id="pitch">
+<h2>0. Your pitch</h2>
+<div class="box say"><span class="tag">30 seconds</span>
+<p>"I built an end-to-end sentiment analysis system on IMDB reviews. I compared Bag-of-Words and TF-IDF across five algorithms and tuned logistic regression, which took F1 from 0.71 to 0.82 and recall from 66% to 83%. But the main focus was taking the model beyond the notebook: a reproducible DVC pipeline, experiment tracking and a model registry in MLflow, automated tests and deployment with GitHub Actions, and a Docker container on AWS Kubernetes with Prometheus and Grafana monitoring."</p>
+</div>
+<h3>The 2-minute version</h3>
+<ol class="num-list">
+<li><b>Problem.</b> Companies get thousands of reviews; reading them by hand is slow. Most models die inside a notebook, so I built the whole journey to a live, monitored service.</li>
+<li><b>Data.</b> 500 labelled IMDB reviews, balanced: 249 positive, 251 negative.</li>
+<li><b>Cleaning.</b> Remove URLs and numbers, lowercase, strip punctuation and stop words, lemmatize.</li>
+<li><b>Modelling.</b> Baseline BoW + logistic regression: 70.4% accuracy. Then 10 runs (BoW vs TF-IDF × 5 algorithms): TF-IDF + logistic regression won. GridSearchCV (5-fold, optimising F1): C = 10, L2 → 80% accuracy, 83% recall, F1 0.82.</li>
+<li><b>Engineering.</b> The notebook became a 6-stage DVC pipeline. Every run is logged to MLflow on DagsHub and the model is registered. On every push GitHub Actions reruns the pipeline, tests the model, promotes it to Production, tests the app, builds a Docker image, pushes it to ECR and deploys it to EKS (2 replicas behind a LoadBalancer).</li>
+<li><b>Monitoring.</b> The app exposes request count, latency and per-class prediction counts; Prometheus scrapes them and Grafana charts them.</li>
+<li><b>Challenge.</b> 22 CI runs to get green. Hardest: DagsHub's login opened a browser, and a CI runner has none, so it hung. I switched to token auth from GitHub Secrets.</li>
+<li><b>Learning.</b> The model is maybe 20% of the work. Reproducibility, testing, deployment and monitoring are the other 80%.</li>
+</ol>
+<div class="box warn"><span class="tag">Say this honestly if pushed</span>
+<p>The 80% / 0.82 numbers come from the tuning <i>experiment</i> (80/20 split). The production DVC pipeline uses different settings (75/25 split, only 50 TF-IDF features) and logs its own metrics, which you should look up on DagsHub before the interview (§15).</p>
+</div>
+</section>
+
+<div class="part-head" id="part1">
+  <div class="eyebrow">Part 1</div>
+  <h2>Data science from zero</h2>
+  <p>The ML ideas the project rests on, with worked numbers.</p>
+</div>
+
+<section id="b-mlops">
+<h2>1. What MLOps is, and why a model needs it</h2>
+<div class="box analogy"><span class="tag">Analogy</span>
+<p>A notebook is a recipe a chef cooked once at home. A restaurant needs the recipe written down exactly, the same ingredients every time, a taste test before serving, a kitchen that serves many customers, and someone checking whether customers are happy. This project builds that restaurant around the model.</p>
+</div>
+<div class="scroll"><table>
+<thead><tr><th>Problem without MLOps</th><th>Tool used</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td>"It works on my laptop but I can't repeat it."</td><td>DVC + params.yaml</td><td>Writes down every step and setting; <code>dvc repro</code> rebuilds everything the same way</td></tr>
+<tr><td>"Which experiment was best? I forgot."</td><td>MLflow on DagsHub</td><td>Remembers every run: settings, scores, the model file</td></tr>
+<tr><td>"Which model version is live?"</td><td>MLflow Model Registry</td><td>Versions with stage labels: Staging, Production, Archived</td></tr>
+<tr><td>"Someone pushed a broken model."</td><td>Unit tests in CI</td><td>Does it load, accept the right input, score well enough?</td></tr>
+<tr><td>"It needs Python 3.10 and 20 libraries."</td><td>Docker</td><td>One box that runs the same everywhere</td></tr>
+<tr><td>"Deploying by hand is slow and error-prone."</td><td>GitHub Actions + ECR + EKS</td><td>Every push builds, ships and deploys</td></tr>
+<tr><td>"What if a server dies or traffic grows?"</td><td>Kubernetes, 2 replicas</td><td>Restarts crashed pods, spreads traffic</td></tr>
+<tr><td>"Is the live app healthy?"</td><td>Prometheus + Grafana</td><td>Counts requests, measures latency, live charts</td></tr>
+</tbody></table></div>
+<h3>MLOps maturity levels (Google's framing)</h3>
+<ul>
+<li><b>Level 0, manual</b>: notebooks, hand-copied models.</li>
+<li><b>Level 1, pipeline automation</b>: a reproducible training pipeline, tracking, a registry, <b>continuous training</b> (CT) when data changes.</li>
+<li><b>Level 2, CI/CD for pipelines</b>: the pipeline itself is tested and deployed automatically.</li>
+</ul>
+<p>This project sits around <b>level 1 with CI/CD</b>: the pipeline retrains and redeploys on every code push. What's missing for full level 2: retraining triggered by new data or drift, and a real promotion gate (§29).</p>
+<p><b>Why ML is harder than normal software:</b> behaviour depends on code <i>and</i> data <i>and</i> model, any of which can change; a model can be "wrong" without crashing; and the world it predicts drifts away from the training data.</p>
+</section>
+
+<section id="b-split">
+<h2>2. Splits, cross-validation and data leakage</h2>
+<ul>
+<li><b>Train / test split</b>: the test set is the final exam the model never saw. Scoring on training data is grading a student on questions they memorised.</li>
+<li><b>random_state=42</b> fixes the shuffle, so every run gets the same split and experiments are comparable.</li>
+<li><b>Stratified split</b> keeps the class ratio equal in both parts (<code>stratify=y</code>). Not used here; with 249/251 it barely matters, but it's free.</li>
+<li><b>k-fold cross-validation</b>: split the training data into k parts, train on k−1, test on the remaining one, rotate k times, average. Gives a more stable estimate than one split and is what <code>GridSearchCV(cv=5)</code> does for every hyper-parameter combination.</li>
+<li><b>Data leakage</b>: information from the test set influencing training, so scores look better than reality. Classic case: fitting a scaler or vectorizer on all the data before splitting. The vectorizer's vocabulary and IDF weights then "know" the test reviews.</li>
+</ul>
+<div class="box warn"><span class="tag">Where leakage happens in this project (and where it doesn't)</span>
+<p><b>The DVC pipeline is clean</b>: <span class="file">feature_engineering.py</span> calls <code>fit_transform</code> on train and only <code>transform</code> on test. <b>The experiments are not</b>: <span class="file">exp1.ipynb</span> (CountVectorizer), <span class="file">exp2_bow_vs_tfidf.py:113-115</span> and <span class="file">exp3_lor_tf_idf_hp.py:63-67</span> all fit the vectorizer on all 500 reviews, then split. With TF-IDF the effect is mild (vocabulary and IDF only, no labels), but it makes the experiment scores slightly optimistic. Saying this yourself is a strong signal (§15).</p>
+</div>
+</section>
+
+<section id="b-clean">
+<h2>3. Text cleaning, step by step</h2>
+<p>Example: <code>"This movie was ABSOLUTELY wonderful!!! 10/10 https://imdb.com"</code></p>
+<div class="scroll"><table>
+<thead><tr><th>Step (pipeline order)</th><th>Result</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Remove URLs</td><td>"This movie was ABSOLUTELY wonderful!!! 10/10 "</td><td>Links carry no sentiment</td></tr>
+<tr><td>Remove digits</td><td>"This movie was ABSOLUTELY wonderful!!! / "</td><td>Numbers alone are noisy for this model</td></tr>
+<tr><td>Lowercase</td><td>"this movie was absolutely wonderful!!! / "</td><td>"Great" and "great" become one word</td></tr>
+<tr><td>Punctuation → space, squeeze spaces</td><td>"this movie was absolutely wonderful"</td><td>Fewer junk tokens</td></tr>
+<tr><td>Remove stop words</td><td>"movie absolutely wonderful"</td><td>Very common words carry little meaning</td></tr>
+<tr><td>Lemmatize (WordNet)</td><td>"movie absolutely wonderful"</td><td>"movies" → "movie"</td></tr>
+</tbody></table></div>
+<ul>
+<li><b>Lemmatization vs stemming</b>: stemming chops endings by rule ("studies" → "studi"); lemmatization uses a dictionary ("studies" → "study"). Slower, real words. Note WordNet's lemmatizer treats every word as a noun by default, so "running" stays "running".</li>
+<li><b>The negation trap</b>: NLTK's English stop-word list contains <i>not, no, nor</i> (and "don't", "isn't"…). "not good" becomes "good": the sentiment flips. Keep negations, or use bigrams so "not_good" is its own feature.</li>
+</ul>
+</section>
+
+<section id="b-tfidf">
+<h2>4. Bag-of-Words and TF-IDF, with the actual formula</h2>
+<p><b>Bag of Words</b>: count each word; ignore order. "good good movie" → good = 2, movie = 1.</p>
+<p><b>TF-IDF</b> = how often the word is in <i>this</i> review × how rare it is across <i>all</i> reviews. scikit-learn's default (<code>smooth_idf=True</code>):</p>
+<pre><code>tf(t, d)  = count of term t in document d
+idf(t)    = ln( (1 + n) / (1 + df(t)) ) + 1     # n = number of documents, df = documents containing t
+tfidf     = tf × idf, then each row is L2-normalised (length 1)</code></pre>
+<p><b>Worked example</b>, 4 reviews (n = 4): "movie" appears in all 4, "masterpiece" in 1.</p>
+<ul>
+<li>idf(movie) = ln(5/5) + 1 = <b>1.00</b></li>
+<li>idf(masterpiece) = ln(5/2) + 1 ≈ <b>1.92</b></li>
+<li>So in "movie masterpiece", masterpiece gets almost twice the weight. Common words are pushed down, distinctive words up. After L2 normalisation, long and short reviews are comparable.</li>
+</ul>
+<ul>
+<li><b>max_features=N</b> keeps the N most frequent terms (by count across the training set). The pipeline uses <b>50</b> (params.yaml); the experiments used the full vocabulary. 50 is very small: many sentiment words are simply dropped.</li>
+<li>The result is a <b>sparse</b> matrix (mostly zeros). The pipeline converts it to dense with <code>.toarray()</code> to write CSVs: fine at 50 columns, wasteful at 50,000.</li>
+<li><b>n-grams</b>: <code>ngram_range=(1,2)</code> adds word pairs ("not good", "well done") and helps sentiment a lot.</li>
+<li><b>Embeddings / BERT</b>: dense vectors that capture meaning and context (sarcasm, negation). More accurate with enough data, but heavier to serve and less explainable. With 500 rows and a focus on MLOps, TF-IDF + a linear model is the right call.</li>
+</ul>
+</section>
+
+<section id="b-logreg">
+<h2>5. Logistic regression, with the maths</h2>
+<ol class="num-list">
+<li>Each feature (word) j has a weight w<sub>j</sub>; plus a bias b. Positive words get positive weights.</li>
+<li>Score: z = w · x + b (sum of weight × TF-IDF value).</li>
+<li>Probability: p = σ(z) = 1 / (1 + e<sup>−z</sup>), squashed into (0, 1).</li>
+<li>Prediction: positive if p ≥ 0.5, i.e. z ≥ 0.</li>
+<li>Training minimises <b>log loss</b> (cross-entropy): −[y log p + (1−y) log(1−p)], averaged over reviews, plus a regularisation penalty. Convex, so there's one global optimum.</li>
+</ol>
+<p><b>Why "regression"?</b> It's a linear regression on the <b>log-odds</b>: log(p / (1−p)) = w · x + b. A weight of 0.7 on "wonderful" means each unit of that feature multiplies the odds of "positive" by e<sup>0.7</sup> ≈ 2.</p>
+<p><b>Why it suits text</b>: sparse, high-dimensional features where classes are roughly linearly separable; fast; tiny to serve; gives probabilities; you can read the top positive and negative words off the weights.</p>
+</section>
+
+<section id="b-reg">
+<h2>6. Regularisation, C, L1 vs L2, solvers</h2>
+<ul>
+<li><b>Regularisation</b> penalises large weights so the model doesn't memorise the training data (overfitting).</li>
+<li>scikit-learn minimises roughly <code>C × Σ log-loss + ½‖w‖²</code> (L2) or <code>C × Σ log-loss + ‖w‖₁</code> (L1). So <b>C is the inverse of the penalty strength</b>: small C = strong penalty, cautious model; big C = weak penalty, trusts the data.</li>
+<li>Your grid: C ∈ {0.1, 1, 10} × {L1, L2}. At C = 0.1 the penalty was so strong the model predicted almost everything negative (recall 0.33; 0.00 with L1). <b>C = 10, L2 won.</b></li>
+<li><b>L1</b> (lasso) pushes some weights to exactly zero: built-in feature selection. <b>L2</b> (ridge) shrinks all weights smoothly. With few features and little data, L2 kept more useful signal.</li>
+<li><b>Solver</b>: the optimisation algorithm. <code>liblinear</code> (coordinate descent) is good for small datasets and supports both L1 and L2; <code>lbfgs</code> (the default) supports only L2; <code>saga</code> scales to large sparse data and supports both.</li>
+<li><b>Bias–variance</b>: strong regularisation → high bias (underfits); weak → high variance (overfits). CV picks the middle.</li>
+</ul>
+</section>
+
+<section id="b-metrics">
+<h2>7. Metrics, worked on your confusion matrix</h2>
+<p>The tuned model on the 100-review experiment test set (54 truly positive, 46 negative):</p>
+<div class="scroll"><table>
+<thead><tr><th></th><th>Predicted positive</th><th>Predicted negative</th></tr></thead>
+<tbody>
+<tr><td><b>Actually positive (54)</b></td><td>TP = 45</td><td>FN = 9 (missed)</td></tr>
+<tr><td><b>Actually negative (46)</b></td><td>FP = 11 (false alarm)</td><td>TN = 35</td></tr>
+</tbody></table></div>
+<div class="scroll"><table>
+<thead><tr><th>Metric</th><th>Meaning</th><th>Formula</th><th class="num">Value</th></tr></thead>
+<tbody>
+<tr><td>Accuracy</td><td>How often right overall</td><td>(45+35)/100</td><td class="num">0.80</td></tr>
+<tr><td>Precision</td><td>When it says positive, how often right</td><td>45/(45+11)</td><td class="num">0.804</td></tr>
+<tr><td>Recall</td><td>Of real positives, how many found</td><td>45/(45+9)</td><td class="num">0.833</td></tr>
+<tr><td>F1</td><td>Harmonic mean of P and R</td><td>2PR/(P+R)</td><td class="num">0.818</td></tr>
+<tr><td>Specificity</td><td>Of real negatives, how many found</td><td>35/46</td><td class="num">0.761</td></tr>
+</tbody></table></div>
+<ul>
+<li><b>Why harmonic mean?</b> It punishes imbalance: precision 0.94 with recall 0.54 gives F1 ≈ 0.68 (your Naive Bayes case). You can't hide a weak metric behind a strong one.</li>
+<li><b>ROC curve</b>: true-positive rate vs false-positive rate at every threshold. <b>AUC</b> = probability a random positive is ranked above a random negative; 0.5 random, 1.0 perfect. The pipeline logs it.</li>
+<li><b>PR curve / PR-AUC</b>: precision vs recall over thresholds; more informative than ROC when positives are rare.</li>
+<li><b>Threshold</b>: 0.5 is a default, not a law. Use <code>predict_proba</code> and pick the threshold from the PR curve to match the business cost (raise for precision, lower for recall).</li>
+<li><b>Precision or recall?</b> Precision when false alarms are expensive (auto-publishing "positive testimonials"); recall when misses are expensive (catching every angry customer).</li>
+</ul>
+</section>
+
+<section id="b-uncert">
+<h2>8. How sure are we? Small test sets and fair comparisons</h2>
+<p>An interviewer with a statistics background will ask this. Be ready.</p>
+<ul>
+<li><b>Confidence interval for accuracy</b>: with n = 100, 80% has a standard error of √(0.8 × 0.2 / 100) = 0.04, so a 95% interval of about <b>0.80 ± 0.078 → [72%, 88%]</b>. The baseline's 70.4% is just outside, but…</li>
+<li>…the baseline (exp1) and the champion (exp3) were measured on <b>different splits</b> (75/25 vs 80/20) with different vectorizers. A fair comparison scores both models on the <b>same</b> test rows and uses a paired test like <b>McNemar</b> (only the reviews where they disagree matter).</li>
+<li><b>CV F1 0.726 ± 0.038 vs test F1 0.818</b>: the cross-validated number averages 5 splits and is the more honest estimate. The single test split was a bit easy. Quote both, trust CV.</li>
+<li><b>Variance from small data</b>: with 500 reviews, which rows land in the test set moves scores by several points. More data, repeated CV, or bootstrap intervals would make the conclusions firmer.</li>
+</ul>
+<div class="box say"><span class="tag">Say it like this</span>
+<p>"The improvement is consistent in direction across CV and the test split, but with 100 test reviews the interval is about ±8 points, so I'd treat the exact gap as approximate. To claim it rigorously I'd score both models on the same split, run McNemar, and use the full 50,000-review IMDB set."</p>
+</div>
+</section>
+
+<div class="part-head" id="part2">
+  <div class="eyebrow">Part 2</div>
+  <h2>The big picture</h2>
+  <p>Draw this on a whiteboard and you'll look confident.</p>
+</div>
+
+<section id="arch">
+<h2>9. Architecture: build, ship, serve</h2>
+<div class="svgwrap">
+<svg viewBox="0 0 780 360" role="img" aria-label="Three blocks: DVC pipeline builds and registers the model; GitHub Actions tests and deploys; EKS serves with Prometheus and Grafana; MLflow on DagsHub in the middle">
+  <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+  <g style="color:var(--llm)">
+    <text x="16" y="24" font-weight="700" fill="currentColor">1 · BUILD (dvc repro)</text>
+    <g font-size="12" text-anchor="middle">
+      <rect x="16" y="34" width="110" height="44" rx="8" fill="var(--llm-soft)" stroke="currentColor"/><text x="71" y="52">ingest</text><text x="71" y="68" class="mut">75/25 split</text>
+      <rect x="140" y="34" width="110" height="44" rx="8" fill="var(--llm-soft)" stroke="currentColor"/><text x="195" y="52">clean</text><text x="195" y="68" class="mut">6 steps</text>
+      <rect x="264" y="34" width="110" height="44" rx="8" fill="var(--llm-soft)" stroke="currentColor"/><text x="319" y="52">TF-IDF</text><text x="319" y="68" class="mut">50 features</text>
+      <rect x="388" y="34" width="110" height="44" rx="8" fill="var(--llm-soft)" stroke="currentColor"/><text x="443" y="52">train</text><text x="443" y="68" class="mut">LogReg C=10</text>
+      <rect x="512" y="34" width="110" height="44" rx="8" fill="var(--llm-soft)" stroke="currentColor"/><text x="567" y="52">evaluate</text><text x="567" y="68" class="mut">log to MLflow</text>
+      <rect x="636" y="34" width="128" height="44" rx="8" fill="var(--llm-soft)" stroke="currentColor"/><text x="700" y="52">register</text><text x="700" y="68" class="mut">→ Staging</text>
+    </g>
+  </g>
+  <g style="color:var(--solver)">
+    <text x="16" y="124" font-weight="700" fill="currentColor">2 · SHIP (GitHub Actions on every push)</text>
+    <g font-size="12" text-anchor="middle">
+      <rect x="16" y="134" width="110" height="40" rx="8" fill="var(--solver-soft)" stroke="currentColor"/><text x="71" y="158">dvc repro</text>
+      <rect x="140" y="134" width="110" height="40" rx="8" fill="var(--solver-soft)" stroke="currentColor"/><text x="195" y="158">model tests</text>
+      <rect x="264" y="134" width="110" height="40" rx="8" fill="var(--solver-soft)" stroke="currentColor"/><text x="319" y="158">→ Production</text>
+      <rect x="388" y="134" width="110" height="40" rx="8" fill="var(--solver-soft)" stroke="currentColor"/><text x="443" y="158">Flask tests</text>
+      <rect x="512" y="134" width="110" height="40" rx="8" fill="var(--solver-soft)" stroke="currentColor"/><text x="567" y="158">docker → ECR</text>
+      <rect x="636" y="134" width="128" height="40" rx="8" fill="var(--solver-soft)" stroke="currentColor"/><text x="700" y="158">kubectl apply</text>
+    </g>
+  </g>
+  <g style="color:var(--human)">
+    <text x="16" y="222" font-weight="700" fill="currentColor">3 · SERVE AND WATCH (AWS EKS)</text>
+    <g font-size="12" text-anchor="middle">
+      <rect x="16" y="232" width="110" height="40" rx="8" fill="var(--human-soft)" stroke="currentColor"/><text x="71" y="256">user review</text>
+      <rect x="140" y="232" width="110" height="40" rx="8" fill="var(--human-soft)" stroke="currentColor"/><text x="195" y="256">LoadBalancer</text>
+      <rect x="264" y="232" width="110" height="40" rx="8" fill="var(--human-soft)" stroke="currentColor"/><text x="319" y="250">Flask pod ×2</text><text x="319" y="265" class="mut">gunicorn</text>
+      <rect x="388" y="232" width="110" height="40" rx="8" fill="var(--human-soft)" stroke="currentColor"/><text x="443" y="256">Positive/Negative</text>
+      <rect x="512" y="232" width="110" height="40" rx="8" fill="var(--human-soft)" stroke="currentColor"/><text x="567" y="256">Prometheus</text>
+      <rect x="636" y="232" width="128" height="40" rx="8" fill="var(--human-soft)" stroke="currentColor"/><text x="700" y="256">Grafana</text>
+    </g>
+  </g>
+  <g style="color:var(--muted)">
+    <rect x="200" y="300" width="380" height="46" rx="10" fill="var(--sunk)" stroke="currentColor" stroke-dasharray="5 4"/>
+    <text x="390" y="320" text-anchor="middle" font-weight="700">MLflow on DagsHub: runs, metrics, model versions</text>
+    <text x="390" y="337" text-anchor="middle" class="mut" font-size="12">pipeline writes · CI promotes · pods download the model at start-up</text>
+  </g>
+</svg>
+</div>
+<ul>
+<li><b>Build</b>: raw text → 6-stage recipe → trained, evaluated, registered model.</li>
+<li><b>Ship</b>: every push → rebuild, test, promote, containerise, deploy.</li>
+<li><b>Serve and watch</b>: requests reach 2 pods through a LoadBalancer; Prometheus scrapes <code>/metrics</code>; Grafana draws dashboards.</li>
+<li><b>MLflow on DagsHub</b> is the shared memory between all three.</li>
+</ul>
+</section>
+
+<section id="files">
+<h2>10. Every file, and what it does</h2>
+<p>The layout came from the Cookiecutter Data Science template.</p>
+<div class="scroll"><table>
+<thead><tr><th>File</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><span class="file">notebooks/exp1.ipynb</span></td><td>Baseline: BoW + default logistic regression</td></tr>
+<tr><td><span class="file">notebooks/exp2_bow_vs_tfidf.py</span></td><td>10 nested MLflow runs: {BoW, TF-IDF} × {LogReg, NB, XGBoost, RF, GBoost}</td></tr>
+<tr><td><span class="file">notebooks/exp3_lor_tf_idf_hp.py</span></td><td>GridSearchCV over C and penalty, 5-fold, scoring F1, every combination logged</td></tr>
+<tr><td><span class="file">params.yaml</span></td><td><code>test_size: 0.25</code>, <code>max_features: 50</code></td></tr>
+<tr><td><span class="file">dvc.yaml</span> / <span class="file">dvc.lock</span></td><td>The 6 stages with deps, params and outs / hashes of every input and output from the last run</td></tr>
+<tr><td><span class="file">.dvc/config</span></td><td>Remote storage: <code>s3://capstone-data-12</code></td></tr>
+<tr><td><span class="file">src/data/data_ingestion.py</span></td><td>Download CSV, keep positive/negative, map to 1/0, split, write data/raw</td></tr>
+<tr><td><span class="file">src/data/data_preprocessing.py</span></td><td>Clean the review text, write data/interim</td></tr>
+<tr><td><span class="file">src/features/feature_engineering.py</span></td><td>Fit TF-IDF on train, transform both, write data/processed and models/vectorizer.pkl</td></tr>
+<tr><td><span class="file">src/model/model_building.py</span></td><td>Train <code>LogisticRegression(C=10, l2, liblinear)</code>, write models/model.pkl</td></tr>
+<tr><td><span class="file">src/model/model_evaluation.py</span></td><td>Score on test, write reports/metrics.json, log params/metrics/model to MLflow, write reports/experiment_info.json</td></tr>
+<tr><td><span class="file">src/model/register_model.py</span></td><td>Register the logged model as "my_model" and move it to Staging</td></tr>
+<tr><td><span class="file">src/logger/__init__.py</span></td><td>Rotating file log (5 MB × 3) + console</td></tr>
+<tr><td><span class="file">src/connections/</span></td><td>S3 and SQL Server helpers, currently unused (the S3 path is commented out)</td></tr>
+<tr><td><span class="file">tests/test_model.py</span></td><td>Load, signature and performance tests on the newest Staging model</td></tr>
+<tr><td><span class="file">tests/test_flask_app.py</span></td><td>Home page and /predict tests</td></tr>
+<tr><td><span class="file">scripts/promote_model.py</span></td><td>Archive current Production, promote newest Staging</td></tr>
+<tr><td><span class="file">flask_app/app.py</span></td><td>The web service: cleaning, vectorising, predicting, Prometheus metrics</td></tr>
+<tr><td><span class="file">flask_app/templates/index.html</span></td><td>The form and the result</td></tr>
+<tr><td><span class="file">Dockerfile</span></td><td>python:3.10-slim + app + vectorizer + NLTK data, run by gunicorn on :5000</td></tr>
+<tr><td><span class="file">.github/workflows/ci.yaml</span></td><td>The whole CI/CD pipeline</td></tr>
+<tr><td><span class="file">deployment.yaml</span></td><td>Kubernetes Deployment (2 replicas) + LoadBalancer Service</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="flow">
+<h2>11. Follow one review from browser to dashboard</h2>
+<div class="scroll"><table>
+<thead><tr><th>Step</th><th>What happens</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>1. Browser</td><td>User submits the form → <code>POST /predict</code> with field <code>text</code></td><td>Raw text arrives</td></tr>
+<tr><td>2. LoadBalancer</td><td>AWS forwards to one of 2 pods (Service selector <code>app: flask-app</code>)</td><td>Request reaches a pod</td></tr>
+<tr><td>3. Gunicorn</td><td>A worker process calls the Flask view</td><td>Python code runs</td></tr>
+<tr><td>4. Count</td><td><code>REQUEST_COUNT.labels("POST","/predict").inc()</code>, start a timer</td><td>Counter +1</td></tr>
+<tr><td>5. Clean</td><td><code>normalize_text</code>: lowercase, stop words, digits, punctuation, URLs, lemmatize (note: a different order from training, §31)</td><td>"movie absolutely wonderful"</td></tr>
+<tr><td>6. Vectorise</td><td>The saved <code>vectorizer.pkl</code> → 50 numbers; wrapped in a DataFrame with columns "0".."49"</td><td>[0, 0.71, …]</td></tr>
+<tr><td>7. Predict</td><td>The MLflow pyfunc model → logistic regression → 1 or 0</td><td>1</td></tr>
+<tr><td>8. Measure</td><td><code>PREDICTION_COUNT{prediction="1"}.inc()</code>; latency observed in the histogram</td><td>Seen later in Grafana</td></tr>
+<tr><td>9. Render</td><td><code>index.html</code> with result = 1 → "Positive"</td><td>Answer on screen</td></tr>
+</tbody></table></div>
+</section>
+
+<div class="part-head" id="part3">
+  <div class="eyebrow">Part 3</div>
+  <h2>The experiments</h2>
+  <p>Baseline, comparison, tuning: evidence before code.</p>
+</div>
+
+<section id="e1">
+<h2>12. Experiment 1: the baseline</h2>
+<ul>
+<li><span class="file">notebooks/exp1.ipynb</span>: <code>CountVectorizer(max_features=150)</code> (Bag of Words, top 150 words) + default <code>LogisticRegression</code>, 75/25 split, <code>random_state=42</code>, logged to MLflow ("Logistic Regression Baseline").</li>
+<li>Result: <b>accuracy 70.4%, precision 78.0%, recall 65.7%, F1 0.713</b>.</li>
+<li>Reading it: precise but misses a third of positive reviews. Raw counts let frequent, uninformative words dominate.</li>
+<li><b>Why a baseline first?</b> Without it, "80%" means nothing. Random guessing on balanced data gives ~50%; the baseline sets the bar a real model must beat.</li>
+</ul>
+</section>
+
+<section id="e2">
+<h2>13. Experiment 2: BoW vs TF-IDF × 5 algorithms</h2>
+<ul>
+<li><span class="file">exp2_bow_vs_tfidf.py</span>: one parent MLflow run ("All Experiments") with 10 nested child runs, one per {vectorizer × algorithm}, 80/20 split, default hyper-parameters, full vocabulary.</li>
+<li>Algorithms: Logistic Regression, Multinomial Naive Bayes, XGBoost, Random Forest, Gradient Boosting.</li>
+<li>Each child logs vectorizer, algorithm, test_size, model params, accuracy/precision/recall/F1, and the model.</li>
+</ul>
+<div class="scroll"><table>
+<thead><tr><th>Finding</th><th>Numbers</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>TF-IDF + LogReg won</td><td>accuracy 0.79, F1 0.807 (BoW + LogReg F1 0.789)</td><td>TF-IDF down-weights common words; linear models benefit from its scaling</td></tr>
+<tr><td>Naive Bayes + TF-IDF: a trap</td><td>precision 0.935, recall 0.537, F1 0.682</td><td>Only says "positive" when very sure, so it misses half: one great metric can hide a bad model</td></tr>
+<tr><td>XGBoost worst</td><td>accuracy 0.63–0.68</td><td>Many parameters, 400 training rows: overfits; boosting needs more data</td></tr>
+<tr><td>Random Forest preferred BoW</td><td>—</td><td>Trees split on thresholds; integer counts can be easier to split than small continuous TF-IDF values; with 500 rows tree results are noisy anyway</td></tr>
+</tbody></table></div>
+<div class="box key"><span class="tag">A detail worth knowing</span>
+<p>The script reuses the same estimator object across the two vectorizers (<code>model = algorithm</code>), so each fit overwrites the previous one. That's fine because every run refits from scratch, but cloning (<code>sklearn.base.clone</code>) would be cleaner.</p>
+</div>
+</section>
+
+<section id="e3">
+<h2>14. Experiment 3: tuning with GridSearchCV</h2>
+<ul>
+<li><span class="file">exp3_lor_tf_idf_hp.py</span>: TF-IDF (full vocabulary), 80/20 split, <code>GridSearchCV(LogisticRegression(), param_grid, cv=5, scoring="f1", n_jobs=-1)</code>.</li>
+<li>Grid: C ∈ {0.1, 1, 10}, penalty ∈ {l1, l2}, solver liblinear → <b>6 combinations × 5 folds = 30 fits</b> (+1 refit on all training data).</li>
+<li>Each combination is logged as a child run with its mean CV F1; the best params, best CV F1 and the model are logged on the parent.</li>
+<li>Winner: <b>C = 10, L2</b>. Test: <b>accuracy 0.80, precision 0.804, recall 0.833, F1 0.818</b>; CV F1 <b>0.726 ± 0.038</b>.</li>
+<li><b>Why optimise F1?</b> It balances precision and recall, so the search can't "win" by being over-cautious like Naive Bayes.</li>
+<li>Overall vs baseline: +9.6 points accuracy, +17.6 recall, +10.5 F1. Across the four MLflow experiment groups (baseline, comparison, tuning, pipeline): <b>36+ runs</b>.</li>
+</ul>
+</section>
+
+<section id="e-honest">
+<h2>15. Reading the experiments honestly</h2>
+<ol class="num-list">
+<li><b>CV vs test.</b> CV F1 0.726 is the more stable estimate; test F1 0.818 came from one lucky-ish split of 100 reviews (§8).</li>
+<li><b>Leakage in the experiments.</b> All three fit the vectorizer on all 500 reviews before splitting (§2). Mild for TF-IDF, but the scores are slightly optimistic. The DVC pipeline fixed it.</li>
+<li><b>Experiments ≠ production config.</b> The pipeline uses 75/25 and <code>max_features=50</code>; the tuned experiment used 80/20 and the full vocabulary. C=10 is hard-coded in <span class="file">model_building.py</span>, not in params.yaml. So the deployed model's metrics are whatever the "my-dvc-pipeline" MLflow experiment shows, not necessarily 80%. Check DagsHub before the interview.</li>
+<li><b>Different splits.</b> Baseline (75/25, BoW-150) and champion (80/20, TF-IDF) weren't scored on the same rows, so the gap is approximate (§8).</li>
+</ol>
+<div class="box say"><span class="tag">Say it like this</span>
+<p>"I chose TF-IDF + logistic regression from tracked evidence: a baseline, a controlled 10-run comparison, then cross-validated tuning. Looking back, the experiments fitted the vectorizer before splitting, which inflates scores slightly, and the pipeline uses fewer features than the tuned config. My production pipeline fixes the leakage, and I'd move every hyper-parameter into params.yaml so the pipeline mirrors the champion exactly."</p>
+</div>
+</section>
+
+<div class="part-head" id="part4">
+  <div class="eyebrow">Part 4</div>
+  <h2>The DVC pipeline, stage by stage</h2>
+  <p>From a CSV on the internet to a registered model.</p>
+</div>
+
+<section id="dvc">
+<h2>16. DVC from zero</h2>
+<ul>
+<li><b>Problem</b>: Git is great for code, bad for large data and model files.</li>
+<li><b>DVC</b> stores data and models in a <b>content-addressed cache</b> (files named by their MD5 hash) and keeps small pointer files / lock entries in Git. Big files go to a <b>remote</b> (here <code>s3://capstone-data-12</code>) with <code>dvc push</code>/<code>dvc pull</code>.</li>
+<li><b>dvc.yaml</b> declares <b>stages</b>: a command, its <b>deps</b> (code and data it reads), <b>params</b> (keys from params.yaml), <b>outs</b> (files it produces) and <b>metrics</b>. Together they form a <b>DAG</b> (directed acyclic graph).</li>
+<li><b>dvc.lock</b> records the hash of every dep, param and out from the last successful run: the exact recipe that produced the model.</li>
+<li><b><code>dvc repro</code></b> walks the DAG and reruns only stages whose deps or params changed (like <code>make</code>). Change <code>max_features</code> → only feature engineering and everything after it rerun.</li>
+<li><code>dvc status</code> shows what's out of date; <code>dvc dag</code> prints the graph; <code>dvc metrics show</code> prints metrics.json.</li>
+</ul>
+</section>
+
+<section id="stages">
+<h2>17. dvc.yaml: the six stages</h2>
+<div class="scroll"><table>
+<thead><tr><th>Stage</th><th>Command</th><th>Deps / params</th><th>Outs</th></tr></thead>
+<tbody>
+<tr><td>data_ingestion</td><td><code>python src/data/data_ingestion.py</code></td><td>the script; <code>data_ingestion.test_size</code></td><td>data/raw (train.csv, test.csv)</td></tr>
+<tr><td>data_preprocessing</td><td><code>…/data_preprocessing.py</code></td><td>data/raw, the script</td><td>data/interim</td></tr>
+<tr><td>feature_engineering</td><td><code>…/feature_engineering.py</code></td><td>data/interim, the script; <code>feature_engineering.max_features</code></td><td>data/processed, models/vectorizer.pkl</td></tr>
+<tr><td>model_building</td><td><code>…/model_building.py</code></td><td>data/processed, the script</td><td>models/model.pkl</td></tr>
+<tr><td>model_evaluation</td><td><code>…/model_evaluation.py</code></td><td>models/model.pkl, the script</td><td>metrics: reports/metrics.json; out: reports/experiment_info.json</td></tr>
+<tr><td>model_registration</td><td><code>…/register_model.py</code></td><td>reports/experiment_info.json, the script</td><td>(none: a new version in the MLflow registry)</td></tr>
+</tbody></table></div>
+<div class="box warn"><span class="tag">Two subtleties</span>
+<ul>
+<li><b>model_evaluation doesn't list data/processed as a dep</b>, yet it reads <code>test_tfidf.csv</code>. Usually harmless (a new test set also changes model.pkl), but deps should list everything a stage reads.</li>
+<li><b>Hyper-parameters aren't params</b>: C=10 is in code, so changing it reruns training only because the script changed, and dvc.lock doesn't show the value.</li>
+</ul>
+</div>
+</section>
+
+<section id="s-ingest">
+<h2>18. Stage 1, data_ingestion.py</h2>
+<ol class="num-list">
+<li><code>load_params('params.yaml')</code> → <code>test_size = 0.25</code>.</li>
+<li><code>load_data(url)</code>: reads a 500-row CSV straight from a public GitHub URL. (The S3 path via <code>s3_connection.py</code> is written but commented out.)</li>
+<li><code>preprocess_data</code>: keep rows whose sentiment is positive or negative; map positive → 1, negative → 0.</li>
+<li><code>train_test_split(test_size=0.25, random_state=42)</code> → 375 train / 125 test (not stratified).</li>
+<li>Write <span class="file">data/raw/train.csv</span> and <span class="file">test.csv</span>.</li>
+</ol>
+<p>Every function logs and re-raises; <code>main()</code> catches everything, logs and <b>prints</b> the error (§24 explains why that's a problem).</p>
+<p><b>Reproducibility gap</b>: the source is a URL DVC doesn't track. If its content changed, the pipeline wouldn't know. Fix: <code>dvc import-url</code> or version the raw CSV in the S3 remote.</p>
+</section>
+
+<section id="s-prep">
+<h2>19. Stage 2, data_preprocessing.py</h2>
+<p><code>preprocess_text</code> applies, in this order: remove URLs → remove digits → lowercase → punctuation to spaces (also an Arabic semicolon), squeeze whitespace → drop NLTK English stop words → WordNet lemmatize. Applied to the <code>review</code> column of train and test separately, then written to <span class="file">data/interim/</span>.</p>
+<ul>
+<li><code>nltk.download('wordnet')</code> and <code>('stopwords')</code> run at import: needs network on first run.</li>
+<li>The "remove sentences under 3 words" step is commented out; <code>dropna</code> afterwards does nothing in practice.</li>
+<li>Applying the cleaning to train and test separately is fine: it's a fixed function, nothing is "fitted".</li>
+</ul>
+</section>
+
+<section id="s-feat">
+<h2>20. Stage 3, feature_engineering.py</h2>
+<ol class="num-list">
+<li>Read params → <code>max_features = 50</code>.</li>
+<li>Load the interim CSVs; <code>fillna('')</code> so empty reviews don't crash the vectorizer.</li>
+<li><code>TfidfVectorizer(max_features=50)</code>: <b><code>fit_transform</code> on train, <code>transform</code> on test</b>. No leakage.</li>
+<li>Convert to dense DataFrames (50 columns named 0..49) and append a <code>label</code> column.</li>
+<li><b>Pickle the vectorizer</b> to <span class="file">models/vectorizer.pkl</span>: the live app must use exactly this vocabulary and these IDF weights.</li>
+<li>Write <span class="file">data/processed/train_tfidf.csv</span> and <span class="file">test_tfidf.csv</span>.</li>
+</ol>
+</section>
+
+<section id="s-train">
+<h2>21. Stage 4, model_building.py</h2>
+<p>Read <span class="file">train_tfidf.csv</span>, X = all columns but the last, y = the last; <code>LogisticRegression(C=10, solver='liblinear', penalty='l2').fit(X, y)</code>; pickle to <span class="file">models/model.pkl</span>. Training takes milliseconds.</p>
+<div class="box key"><span class="tag">Pickle, briefly</span>
+<p>Pickle serialises Python objects. It's convenient but tied to library versions (a model pickled with one scikit-learn version may not load in another) and <b>unsafe to load from untrusted sources</b> (unpickling can run code). MLflow's model format adds the environment (conda/requirements) and a signature on top.</p>
+</div>
+</section>
+
+<section id="s-eval">
+<h2>22. Stage 5, model_evaluation.py</h2>
+<ol class="num-list">
+<li>At import: read the DagsHub token from <code>CAPSTONE_TEST</code> (or <code>dagshub_token</code>), put it in <code>MLFLOW_TRACKING_USERNAME</code> and <code>PASSWORD</code>, and set the tracking URI to <code>https://dagshub.com/satyagudu1146/MLOPS-PROJ-CI-CD.mlflow</code>. No browser login (the CI fix, §36).</li>
+<li><code>mlflow.set_experiment("my-dvc-pipeline")</code>, start a run.</li>
+<li>Load model.pkl and test_tfidf.csv; predict labels and probabilities.</li>
+<li>Compute <b>accuracy, precision, recall, ROC-AUC</b> (not F1); write <span class="file">reports/metrics.json</span>.</li>
+<li>Log the metrics, every model parameter (<code>get_params()</code>), the model (<code>mlflow.sklearn.log_model(clf, "model")</code>) and metrics.json as an artifact.</li>
+<li>Write <span class="file">reports/experiment_info.json</span> = {run_id, model_path: "model"}: the hand-off to registration.</li>
+</ol>
+</section>
+
+<section id="s-reg">
+<h2>23. Stage 6, register_model.py</h2>
+<ol class="num-list">
+<li>Same token-based MLflow setup.</li>
+<li>Read experiment_info.json → model URI <code>runs:/&lt;run_id&gt;/model</code>.</li>
+<li><code>mlflow.register_model(uri, "my_model")</code> creates a new version (1, 2, 3…).</li>
+<li><code>client.transition_model_version_stage(name, version, "Staging")</code>.</li>
+</ol>
+<p>So every pipeline run registers a new version in Staging. Promotion to Production happens later, in CI, after the tests pass (§26).</p>
+</section>
+
+<section id="s-logger">
+<h2>24. Logging and error handling (and a silent-failure trap)</h2>
+<ul>
+<li><span class="file">src/logger/__init__.py</span> configures the root logger once at import: a <code>RotatingFileHandler</code> (5 MB, 3 backups, one timestamped file per process in <span class="file">logs/</span>) and a console handler, both at INFO.</li>
+<li>Every helper logs and <b>re-raises</b> (good).</li>
+<li>But every <code>main()</code> wraps everything in <code>try/except Exception</code>, logs and <b>prints</b> the error, and returns normally. The process exits with code 0.</li>
+</ul>
+<div class="box warn"><span class="tag">Why that matters</span>
+<p>DVC and GitHub Actions decide success by the exit code. If ingestion fails (URL down), the stage "succeeds", DVC moves on, and the failure only shows up later as a confusing error in a downstream stage, or as stale outputs being reused. Fix: re-raise (or <code>sys.exit(1)</code>) in <code>main()</code> so the pipeline fails fast at the real cause.</p>
+</div>
+</section>
+
+<div class="part-head" id="part5">
+  <div class="eyebrow">Part 5</div>
+  <h2>MLflow: tracking and the registry</h2>
+  <p>The memory of the project.</p>
+</div>
+
+<section id="mlflow">
+<h2>25. Experiment tracking</h2>
+<ul>
+<li><b>Experiment</b> = a named group of runs ("Bow vs TfIdf", "LoR Hyperparameter Tuning", "my-dvc-pipeline"…). <b>Run</b> = one execution, with <b>params</b> (inputs), <b>metrics</b> (numbers, can be logged per step), <b>artifacts</b> (files: the model, metrics.json, plots) and tags (git commit, user).</li>
+<li><b>Nested runs</b>: a parent run with children, used for the 10-way comparison and the grid search, so they stay grouped in the UI.</li>
+<li><b>DagsHub</b> hosts an MLflow tracking server per repo, so runs are shared and survive your laptop; authentication is HTTP basic auth, where both username and password can be the access token.</li>
+<li><b>Why not a spreadsheet?</b> MLflow logs automatically, links metrics to the exact params and model file, compares runs side by side, and turns a run into a deployable versioned model.</li>
+<li><b>MLflow model format</b>: <code>log_model</code> saves the model plus an MLmodel file describing "flavours" (sklearn, and the generic <b>pyfunc</b> with a <code>predict(DataFrame)</code> interface) and the Python environment. The app and tests load it as <code>mlflow.pyfunc.load_model(...)</code>, which is why they pass a DataFrame with string column names.</li>
+</ul>
+</section>
+
+<section id="registry">
+<h2>26. The Model Registry and promotion</h2>
+<ul>
+<li>A <b>registered model</b> ("my_model") has numbered <b>versions</b>, each pointing to a run's model artifact.</li>
+<li>Each version has a <b>stage</b>: None → <b>Staging</b> (being tested) → <b>Production</b> (live) → <b>Archived</b> (retired).</li>
+<li><span class="file">scripts/promote_model.py</span>: take the newest Staging version; move every current Production version to Archived; move the new one to Production. Rollback = move an older version back to Production and restart the pods.</li>
+<li>Consumers ask for a model by name and stage/version (<code>models:/my_model/Production</code>) instead of a file path, so deployment and model updates are decoupled.</li>
+</ul>
+<div class="box warn"><span class="tag">Two things to know</span>
+<ul>
+<li><b>Stages are deprecated</b> since MLflow 2.9 in favour of <b>aliases</b> (e.g. <code>@champion</code>, <code>@challenger</code>) and tags. <code>transition_model_version_stage</code> and <code>get_latest_versions</code> still work in 2.19 but warn. Mention you'd migrate.</li>
+<li><b>The app loads Staging, not Production</b>: <code>get_latest_model_version</code> in app.py asks for the newest Staging version (else unstaged). The README says Production. Since CI promotes right after testing, they're usually the same version, but the clean design is to load <code>models:/my_model@champion</code> explicitly.</li>
+</ul>
+</div>
+</section>
+
+<div class="part-head" id="part6">
+  <div class="eyebrow">Part 6</div>
+  <h2>Testing: the quality gate</h2>
+  <p>What's checked before a model reaches users, and what should be.</p>
+</div>
+
+<section id="t-model">
+<h2>27. tests/test_model.py</h2>
+<p><code>setUpClass</code> (runs once): token auth, find the newest <b>Staging</b> version of my_model, load it as pyfunc, load vectorizer.pkl, load the holdout <span class="file">data/processed/test_tfidf.csv</span>.</p>
+<div class="scroll"><table>
+<thead><tr><th>Test</th><th>What it checks</th><th>What it catches</th></tr></thead>
+<tbody>
+<tr><td><code>test_model_loaded_properly</code></td><td>The model object isn't None</td><td>Registry or auth problems, missing artifacts</td></tr>
+<tr><td><code>test_model_signature</code></td><td>Vectorise "hi how are you" → DataFrame with as many columns as the vectorizer's vocabulary; the model returns one prediction per row, as a 1-D array</td><td>A model trained with a different vectorizer / feature count; wrong output shape</td></tr>
+<tr><td><code>test_model_performance</code></td><td>Accuracy, precision, recall and F1 on the holdout set are all ≥ <b>0.40</b></td><td>Only catastrophic models</td></tr>
+</tbody></table></div>
+<div class="box warn"><span class="tag">The weak threshold</span>
+<p>0.40 is below random guessing (0.50) on balanced data, so nearly any model passes. It's a smoke test, not a quality gate. Better: thresholds near the known baseline (~0.70), and a <b>champion vs challenger</b> check: promote only if the new model beats the current Production model on the same holdout set.</p>
+</div>
+</section>
+
+<section id="t-app">
+<h2>28. tests/test_flask_app.py</h2>
+<ul>
+<li>Uses Flask's <code>app.test_client()</code>: requests are handled in-process, no server needed.</li>
+<li><code>test_home_page</code>: GET / → 200 and the page title is "Sentiment Analysis".</li>
+<li><code>test_predict_page</code>: POST /predict with "I love this!" → 200 and the page contains "Positive" or "Negative".</li>
+<li><b>Side effect</b>: <code>from flask_app.app import app</code> runs app.py's top-level code, which authenticates and downloads the model from MLflow. That's why these tests need the token and must run after a model exists (CI story 3, §36).</li>
+<li>The template renders "😊 Positive Sentiment" or "😞 Negative Sentiment", so the check proves a prediction happened, not that it's right. A stricter test would assert the label for a few unambiguous reviews.</li>
+</ul>
+</section>
+
+<section id="t-better">
+<h2>29. What a production-grade gate would add</h2>
+<ul>
+<li><b>Data tests</b>: schema (columns, types), no empty reviews, label balance within bounds, no train/test overlap (e.g. Great Expectations / pandera).</li>
+<li><b>Behavioural tests</b> (CheckList style): invariance ("I loved the movie" vs "I loved the film" → same label), directional ("good" → "not good" should lower the score), minimum-functionality cases.</li>
+<li><b>Champion vs challenger</b> on a fixed holdout, with a minimum improvement and a significance test.</li>
+<li><b>Latency and size budgets</b>: model loads under N seconds, predicts under M ms.</li>
+<li><b>Training–serving parity test</b>: the app's cleaning and the pipeline's cleaning give identical output on sample texts (it would catch §31).</li>
+</ul>
+</section>
+
+<div class="part-head" id="part7">
+  <div class="eyebrow">Part 7</div>
+  <h2>Serving: Flask, Gunicorn and Docker</h2>
+  <p>How a model becomes an HTTP service in a container.</p>
+</div>
+
+<section id="app">
+<h2>30. flask_app/app.py, top to bottom</h2>
+<ol class="num-list">
+<li><b>Cleaning helpers</b> (lines 18-68): the same six operations as training, wrapped in <code>normalize_text</code>.</li>
+<li><b>Auth at import</b> (73-85): token from <code>CAPSTONE_TEST</code> → MLflow env vars → tracking URI on DagsHub. Missing token → the app refuses to start (<code>EnvironmentError</code>).</li>
+<li><b>Prometheus registry</b> (101-112): a custom <code>CollectorRegistry</code> with three metrics: <code>app_request_count</code> (Counter, labels method and endpoint), <code>app_request_latency_seconds</code> (Histogram, label endpoint), <code>model_prediction_count</code> (Counter, label prediction). A custom registry means <code>/metrics</code> shows only these, not Python process metrics.</li>
+<li><b>Model loading at import</b> (116-128): find the newest Staging version of <code>my_model</code> (else the newest unstaged), load it with <code>mlflow.pyfunc.load_model("models:/my_model/&lt;v&gt;")</code>; load <code>models/vectorizer.pkl</code> from the image. This happens once per worker process, at start-up.</li>
+<li><b><code>GET /</code></b>: count, render the form, observe latency.</li>
+<li><b><code>POST /predict</code></b>: count → <code>normalize_text</code> → <code>vectorizer.transform</code> → dense DataFrame with columns "0"…"49" (the pyfunc model expects the same column names it was logged with) → <code>model.predict</code> → count the predicted class → observe latency → render.</li>
+<li><b><code>GET /metrics</code></b>: <code>generate_latest(registry)</code> in the Prometheus text format.</li>
+<li><code>app.run(debug=True, host="0.0.0.0", port=5000)</code> only when run directly; in the container gunicorn imports <code>app:app</code> instead. (Debug mode must never be used in production: it exposes an interactive debugger.)</li>
+</ol>
+<div class="box warn"><span class="tag">Small code smells to know</span>
+<ul>
+<li><code>remove_small_sentences</code> uses <code>np</code>, which isn't imported. It's never called, so it never fails.</li>
+<li>Stop words are rebuilt as a set and a lemmatizer is created on <i>every</i> request: cheap here, but should be created once at start-up.</li>
+<li>No input validation: an empty or huge text is processed as-is.</li>
+</ul>
+</div>
+</section>
+
+<section id="skew">
+<h2>31. Training–serving skew: the cleaning order differs</h2>
+<div class="scroll"><table>
+<thead><tr><th>Step</th><th>Training (<span class="file">data_preprocessing.py</span>)</th><th>Serving (<span class="file">app.py</span>)</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Remove URLs</td><td>Lowercase</td></tr>
+<tr><td>2</td><td>Remove digits</td><td>Remove stop words</td></tr>
+<tr><td>3</td><td>Lowercase</td><td>Remove digits</td></tr>
+<tr><td>4</td><td>Punctuation → spaces</td><td>Punctuation → spaces</td></tr>
+<tr><td>5</td><td>Remove stop words</td><td><b>Remove URLs</b> (too late)</td></tr>
+<tr><td>6</td><td>Lemmatize</td><td>Lemmatize</td></tr>
+</tbody></table></div>
+<p><b>Concrete failure</b>: "great https://imdb.com" → training removes the URL first → "great". Serving replaces punctuation first, so the URL becomes "https imdb com", no longer matches the URL regex, and survives as three words. Also, serving removes stop words <i>before</i> punctuation, so in "it was so, so good" the token "so," (with its comma) isn't in the stop list, and after punctuation is stripped it survives as "so". Training would have removed it. The model then sees tokens it never saw in training.</p>
+<p>With <code>max_features=50</code> most such tokens fall outside the vocabulary and are ignored, so the damage is small, but it's exactly the class of bug that silently degrades models in production.</p>
+<div class="box key"><span class="tag">The fix to describe</span>
+<p>One shared cleaning function imported by both, or better, a single <b>scikit-learn Pipeline</b> (FunctionTransformer(clean) → TfidfVectorizer → LogisticRegression) logged to MLflow as <b>one</b> model. Then the app sends raw text and can never drift from training. Plus a parity test in CI (§29).</p>
+</div>
+</section>
+
+<section id="gunicorn">
+<h2>32. Gunicorn and workers</h2>
+<ul>
+<li>Flask's built-in server is for development: one process, not hardened. <b>Gunicorn</b> is a production WSGI server: a master process managing worker processes, restarting dead workers and enforcing timeouts.</li>
+<li>The image runs <code>gunicorn --bind 0.0.0.0:5000 --timeout 120 app:app</code>. With no <code>--workers</code>, gunicorn starts <b>1 sync worker</b>: one request at a time per pod. A common setting is (2 × cores) + 1.</li>
+<li><code>--timeout 120</code>: a worker silent for 120 s is killed and restarted. Raised because loading the model from DagsHub at start-up can be slow.</li>
+<li><b>Prometheus with several workers</b>: each worker process has its own counters, so a scrape hits one worker and sees only its numbers. With more than one worker you need the client's <b>multiprocess mode</b> (a shared directory via <code>PROMETHEUS_MULTIPROC_DIR</code>). With one worker the problem doesn't arise.</li>
+<li>Gunicorn isn't in <span class="file">flask_app/requirements.txt</span>; it (and scikit-learn, needed to unpickle the model) arrive as dependencies of the full <code>mlflow</code> package. Works, but list them explicitly.</li>
+</ul>
+</section>
+
+<section id="docker">
+<h2>33. The Dockerfile, line by line</h2>
+<pre><code>FROM python:3.10-slim                         # small Debian image with Python 3.10
+WORKDIR /app
+COPY flask_app/ /app/                         # app.py, templates/, requirements.txt
+COPY models/vectorizer.pkl /app/models/vectorizer.pkl   # same vectorizer as training
+RUN pip install -r requirements.txt
+RUN python -m nltk.downloader stopwords wordnet          # NLTK data baked in
+EXPOSE 5000
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "120", "app:app"]</code></pre>
+<ul>
+<li><b>Images are layers</b>: each instruction creates a cached layer; a rebuild reuses layers until the first changed instruction.</li>
+<li><b>Caching improvement</b>: copy only <code>requirements.txt</code> first, <code>pip install</code>, <i>then</i> copy the app. Today any change to app.py invalidates the pip layer and reinstalls everything.</li>
+<li><code>pip install --no-cache-dir</code> keeps the image smaller.</li>
+<li><b>Security</b>: runs as root (add a non-root <code>USER</code>); no secrets inside: the DagsHub token is injected at runtime as an environment variable from a Kubernetes Secret.</li>
+<li><b>The model isn't in the image</b>: it's downloaded from DagsHub when the pod starts (§44 discusses the trade-off).</li>
+<li>Multi-stage builds and a <code>.dockerignore</code> help larger projects; a <code>HEALTHCHECK</code> is handled by Kubernetes probes instead.</li>
+</ul>
+</section>
+
+<div class="part-head" id="part8">
+  <div class="eyebrow">Part 8</div>
+  <h2>CI/CD with GitHub Actions</h2>
+  <p>Every push: rebuild, test, promote, containerise, deploy.</p>
+</div>
+
+<section id="ci">
+<h2>34. ci.yaml, step by step</h2>
+<p>Trigger: <code>on: push</code> (every branch, every file). One job, <code>project-testing</code>, on a fresh <code>ubuntu-latest</code> virtual machine.</p>
+<div class="flow">
+  <div class="stage"><div class="name">Setup</div><div><span class="chip solver">checkout · python 3.10 · pip cache</span><p><code>actions/checkout@v4</code>; <code>setup-python@v5</code>; <code>actions/cache@v4</code> on <code>~/.cache/pip</code> keyed by the hash of requirements.txt, so unchanged requirements install from cache.</p></div></div>
+  <div class="down">↓</div>
+  <div class="stage"><div class="name">Install</div><div><span class="chip solver">pip · AWS CLI v2</span><p><code>pip install -r requirements.txt</code> (exact pins: numpy 2.2.1, scikit-learn 1.5.2, mlflow 2.19.0, dvc 3.67.1, dvc-s3 3.2.2…). AWS CLI v2 from the official zip.</p></div></div>
+  <div class="down">↓</div>
+  <div class="stage"><div class="name">Train</div><div><span class="chip llm">dvc repro</span><p>With <code>CAPSTONE_TEST</code> from GitHub Secrets. A fresh runner has no DVC cache, so all 6 stages run: download, clean, vectorise, train, evaluate + log, register → Staging.</p></div></div>
+  <div class="down">↓</div>
+  <div class="stage"><div class="name">Gate</div><div><span class="chip llm">model tests → promote → app tests</span><p><code>unittest tests/test_model.py</code>; if green, <code>scripts/promote_model.py</code>; then <code>tests/test_flask_app.py</code>. A failing step stops the job (later steps run only on success).</p></div></div>
+  <div class="down">↓</div>
+  <div class="stage"><div class="name">Package</div><div><span class="chip solver">ECR login · build · tag · push</span><p><code>aws configure</code> with access keys from secrets; <code>aws ecr get-login-password | docker login</code>; <code>docker build -t &lt;repo&gt;:latest .</code>; tag with the full ECR URI; <code>docker push</code>.</p></div></div>
+  <div class="down">↓</div>
+  <div class="stage"><div class="name">Deploy</div><div><span class="chip human">kubectl</span><p><code>azure/setup-kubectl@v3</code>; <code>aws eks update-kubeconfig --name flask-app-cluster</code>; create/update the Secret with <code>kubectl create secret … --dry-run=client -o yaml | kubectl apply -f -</code> (idempotent: creates or updates); <code>kubectl apply -f deployment.yaml</code>.</p></div></div>
+</div>
+<div class="box warn"><span class="tag">A real deployment gap (great to mention)</span>
+<p>The image is always tagged <code>:latest</code> and <span class="file">deployment.yaml</span> never changes, so on the second and later pushes <code>kubectl apply</code> reports "unchanged" and <b>Kubernetes doesn't restart the pods</b>. The new image (and the newly promoted model, which pods load only at start-up) isn't picked up until pods restart for another reason. Fixes: tag images with the git SHA and set it in the manifest (<code>kubectl set image</code>), or run <code>kubectl rollout restart deployment/flask-app</code> after apply.</p>
+</div>
+</section>
+
+<section id="secrets">
+<h2>35. Secrets and authentication</h2>
+<div class="scroll"><table>
+<thead><tr><th>Secret</th><th>Used for</th><th>Where it lives</th></tr></thead>
+<tbody>
+<tr><td><code>CAPSTONE_TEST</code></td><td>DagsHub/MLflow token</td><td>GitHub Secrets → env var in CI steps; Kubernetes Secret <code>capstone-secret</code> → env var in pods (<code>secretKeyRef</code>)</td></tr>
+<tr><td><code>ACCESS_KEY</code>, <code>SECRET_KEY</code></td><td>AWS CLI (ECR push, EKS access)</td><td>GitHub Secrets</td></tr>
+<tr><td><code>AWS_REGION</code>, <code>AWS_ACCOUNT_ID</code>, <code>ECR_REPOSITORY</code></td><td>Building the ECR URI</td><td>GitHub Secrets</td></tr>
+</tbody></table></div>
+<ul>
+<li>Never in code, never in the image. GitHub masks secret values in logs.</li>
+<li><b>Kubernetes Secrets are base64-encoded, not encrypted</b> by default; enable envelope encryption with KMS on EKS, or use AWS Secrets Manager with the CSI driver.</li>
+<li><b>Better than long-lived AWS keys</b>: GitHub's OIDC provider + an IAM role (<code>aws-actions/configure-aws-credentials</code> with <code>role-to-assume</code>): short-lived credentials, nothing to leak.</li>
+<li>The account ID is visible in deployment.yaml's image URI. Not a secret by itself, but it could also come from a variable.</li>
+</ul>
+</section>
+
+<section id="journey">
+<h2>36. The 22-run journey: your best stories</h2>
+<p>Tell each as Problem → Cause → Fix → Lesson. Commits are named "ci-cd run1" … "run18" and beyond.</p>
+<div class="scroll"><table>
+<thead><tr><th>Story</th><th>Problem → cause</th><th>Fix</th><th>Lesson</th></tr></thead>
+<tbody>
+<tr><td><b>1. A CI server waiting for a browser</b> (runs 1-2, 12-14)</td><td>The pipeline hung or failed auth in <code>dvc repro</code> and registration. <code>dagshub.init()</code> logs in with browser OAuth; a CI runner has no browser.</td><td>Token auth: read <code>CAPSTONE_TEST</code>, set <code>MLFLOW_TRACKING_USERNAME/PASSWORD</code>, point MLflow at the DagsHub URL. The browser code is kept, commented, for local use.</td><td>Automation must be non-interactive.</td></tr>
+<tr><td><b>2. Dependency conflicts</b> (runs 3-11)</td><td>Install kept failing on fresh runners: DVC needs specific versions of packages like fsspec and dulwich, and newer pip resolved them differently.</td><td>Run 6 pinned <code>pip&lt;24.1</code>; the final setup pins exact versions in requirements.txt and caches pip by the file's hash.</td><td>Pin versions. A pipeline that works today can break tomorrow with no code change.</td></tr>
+<tr><td><b>3. Flask tests failing on import</b> (run 15)</td><td>Model tests passed, app tests crashed: importing app.py loads the model from MLflow at import time, and app.py still used browser login.</td><td>Token auth in app.py; order the steps: model tests → promote → app tests. Run 16 was the first fully green run.</td><td>Import-time code has side effects; order pipeline steps on purpose.</td></tr>
+<tr><td><b>4. Getting the token into pods safely</b> (runs 16-20)</td><td>Pods need the token to download the model; baking it into the image or the manifest would leak it.</td><td>CI creates a Kubernetes Secret from GitHub Secrets; the Deployment reads it via <code>secretKeyRef</code>.</td><td>Images must be credential-free; inject at runtime.</td></tr>
+<tr><td><b>5. Docs commits failing after cleanup</b> (runs 21-22)</td><td>After deleting the EKS cluster and ECR repo to save money, README commits failed at "Push to ECR": the workflow runs on every push.</td><td>The fix to apply: <code>paths-ignore</code> for README.md, docs/** and images so documentation changes skip the deploy (the current workflow doesn't have it yet).</td><td>Scope triggers; think about cost.</td></tr>
+</tbody></table></div>
+</section>
+
+<div class="part-head" id="part9">
+  <div class="eyebrow">Part 9</div>
+  <h2>AWS and Kubernetes</h2>
+  <p>Where the container runs, and how it stays running.</p>
+</div>
+
+<section id="k8s">
+<h2>37. Kubernetes from zero</h2>
+<div class="scroll"><table>
+<thead><tr><th>Object</th><th>Simple meaning</th><th>Here</th></tr></thead>
+<tbody>
+<tr><td>Cluster / node</td><td>A set of machines (nodes) Kubernetes schedules work onto</td><td>EKS cluster <code>flask-app-cluster</code> in us-east-1 with a node group of EC2 instances</td></tr>
+<tr><td>Pod</td><td>The smallest unit: one or more containers sharing a network address</td><td>One container: the Flask app on port 5000</td></tr>
+<tr><td>Deployment</td><td>"Always keep N identical pods running"; handles rolling updates</td><td><code>flask-app</code>, replicas: 2</td></tr>
+<tr><td>ReplicaSet</td><td>Created by the Deployment; does the actual counting and replacing</td><td>Implicit</td></tr>
+<tr><td>Service</td><td>A stable address in front of changing pods, selected by labels</td><td><code>flask-app-service</code>, type LoadBalancer, port 5000</td></tr>
+<tr><td>Secret</td><td>Key-value store for sensitive config</td><td><code>capstone-secret</code></td></tr>
+<tr><td>Control plane</td><td>API server, scheduler, controllers, etcd (the cluster's database)</td><td>Managed by AWS in EKS</td></tr>
+</tbody></table></div>
+<p><b>Service types</b>: <code>ClusterIP</code> (internal only, default), <code>NodePort</code> (a port on every node), <code>LoadBalancer</code> (the cloud provisions an external load balancer, here an AWS ELB, pointing at the nodes), and <code>Ingress</code> (HTTP routing for many services behind one load balancer).</p>
+<p><b>Reconciliation loop</b>: you declare the desired state (2 pods); controllers continuously compare it with the actual state and fix differences. Kill a pod and a new one appears.</p>
+</section>
+
+<section id="deploy">
+<h2>38. deployment.yaml, line by line</h2>
+<pre><code>kind: Deployment            name: flask-app
+replicas: 2                                     # two copies for availability
+selector.matchLabels: app=flask-app             # which pods belong to it
+template.metadata.labels: app=flask-app         # label stamped on each pod
+image: &lt;account&gt;.dkr.ecr.us-east-1.amazonaws.com/flask-app:latest
+containerPort: 5000
+resources:
+  requests: memory 256Mi, cpu 250m             # reserved for scheduling
+  limits:   memory 512Mi, cpu 1                # hard caps
+env: CAPSTONE_TEST from secretKeyRef capstone-secret/CAPSTONE_TEST
+---
+kind: Service  type: LoadBalancer  selector app=flask-app  port 5000 → targetPort 5000</code></pre>
+<ul>
+<li><b>Requests vs limits</b>: the scheduler places a pod only on a node with the requested resources free. Above the CPU limit the container is throttled; above the memory limit it's <b>OOM-killed</b> and restarted. 250m = a quarter of a CPU core.</li>
+<li>With requests below limits the pod is in the <b>Burstable</b> QoS class (Guaranteed if equal; BestEffort if none).</li>
+<li><b>imagePullPolicy</b> defaults to <code>Always</code> for <code>:latest</code>, so a <i>restarted</i> pod pulls the newest image; but nothing restarts them on deploy (§34).</li>
+<li><b>What's missing</b>: readiness and liveness probes, a rolling-update strategy tuned to the slow start-up, an HPA, a namespace, and a pinned image tag.</li>
+</ul>
+</section>
+
+<section id="ops">
+<h2>39. Probes, rollouts, rollback, scaling</h2>
+<ul>
+<li><b>Readiness probe</b>: "can this pod take traffic?" (e.g. HTTP GET / returns 200). Until it passes, the Service doesn't send requests. Important here because a pod spends its first seconds downloading the model.</li>
+<li><b>Liveness probe</b>: "is it stuck?" If it fails repeatedly, Kubernetes restarts the container.</li>
+<li><b>Startup probe</b>: a longer grace period for slow-starting apps before liveness kicks in.</li>
+<li><b>Rolling update</b> (the Deployment default): replace pods gradually (<code>maxSurge</code>, <code>maxUnavailable</code>), so there's no downtime if readiness probes exist.</li>
+<li><b>Rollback</b>: <code>kubectl rollout undo deployment/flask-app</code> returns to the previous ReplicaSet, which only helps if images have distinct tags. For the model, move the previous registry version back to Production and restart pods.</li>
+<li><b>Horizontal Pod Autoscaler</b>: scale replicas on CPU or custom metrics (e.g. requests per second from Prometheus). Needs CPU requests set (they are) and metrics-server.</li>
+<li>Useful commands: <code>kubectl get pods -o wide</code>, <code>kubectl describe pod &lt;p&gt;</code>, <code>kubectl logs &lt;p&gt;</code>, <code>kubectl get svc</code> (the external LB hostname), <code>kubectl rollout status deployment/flask-app</code>.</li>
+</ul>
+</section>
+
+<section id="aws">
+<h2>40. AWS pieces and cost</h2>
+<ul>
+<li><b>ECR</b>: a private Docker registry; CI pushes the image, EKS nodes pull it (their IAM role needs ECR read permission).</li>
+<li><b>EKS</b>: managed Kubernetes control plane (charged per hour, about $0.10/h) plus the EC2 worker nodes and the ELB, all charged while running, even idle.</li>
+<li><b>S3</b>: the DVC remote (<code>s3://capstone-data-12</code>).</li>
+<li><b>IAM</b>: who may do what. CI uses an access key; nodes use an instance role; better practice is OIDC roles for CI and IRSA (IAM roles for service accounts) for pods.</li>
+<li><b>Cost control</b>: you deleted the cluster, node group and ECR images right after validating and taking screenshots. For this traffic, one container on App Runner / ECS Fargate / a small VM would be enough. EKS was chosen to learn production-grade orchestration; say so.</li>
+</ul>
+</section>
+
+<div class="part-head" id="part10">
+  <div class="eyebrow">Part 10</div>
+  <h2>Monitoring</h2>
+  <p>System health today, model health next.</p>
+</div>
+
+<section id="prom">
+<h2>41. Prometheus from zero</h2>
+<ul>
+<li><b>Pull model</b>: Prometheus <i>scrapes</i> each target's <code>/metrics</code> every few seconds (scrape interval, often 15 s) and stores time series (metric name + labels → timestamped values).</li>
+<li><b>Metric types</b>: <b>Counter</b> only goes up (requests, predictions); <b>Gauge</b> goes up and down (in-flight requests, memory); <b>Histogram</b> counts observations into buckets (latency), so percentiles can be computed; <b>Summary</b> computes quantiles in the client (can't be aggregated across pods).</li>
+<li><b>Why a histogram for latency</b>: averages hide slow requests; p95/p99 show what the slowest users experience. The default buckets go from 5 ms to 10 s.</li>
+<li><b>PromQL you can quote</b>:
+<pre><code>rate(app_request_count_total{endpoint="/predict"}[5m])            # requests per second
+histogram_quantile(0.95, sum by (le) (rate(app_request_latency_seconds_bucket[5m])))   # p95 latency
+sum by (prediction) (rate(model_prediction_count_total[1h]))     # predictions per class</code></pre></li>
+<li>The Python client adds <code>_total</code> to counter names in the exposition format; histograms expose <code>_bucket</code>, <code>_sum</code>, <code>_count</code>.</li>
+<li><b>Scraping pods correctly</b>: each pod keeps its own counters. If Prometheus scrapes through the LoadBalancer address, each scrape lands on a random pod and the series jumps between two counters. The right way is per-pod discovery (Kubernetes service discovery, or a ServiceMonitor with the Prometheus Operator) and <code>sum()</code> in queries.</li>
+</ul>
+</section>
+
+<section id="grafana">
+<h2>42. Grafana and alerting</h2>
+<ul>
+<li>Grafana queries Prometheus and draws panels: request rate per endpoint, p95 latency, predictions per class over time (screenshots are in the repo's <span class="file">EKS RUNS_img/</span>).</li>
+<li><b>The four golden signals</b> (Google SRE): latency, traffic, errors, saturation. You have the first two; errors (count 5xx responses) and saturation (CPU/memory per pod) are the next panels to add.</li>
+<li><b>Alerts</b> (Alertmanager or Grafana alerting): p95 latency above a threshold for 5 minutes, error rate above 1%, prediction mix drifting (§43).</li>
+</ul>
+</section>
+
+<section id="drift">
+<h2>43. Model monitoring: drift and real accuracy</h2>
+<ul>
+<li><b>Data drift</b>: the inputs change (new slang, a new product, longer reviews). <b>Concept drift</b>: the input→label relationship changes (a word's meaning shifts). Both silently degrade a once-good model.</li>
+<li><b>What you already have</b>: <code>model_prediction_count</code> by class, a crude drift signal: if the app suddenly predicts 90% negative, something changed.</li>
+<li><b>Population Stability Index</b>: bin a feature (or the predicted probability) in training vs live data; PSI = Σ (live% − train%) × ln(live% / train%). Rule of thumb: &lt; 0.1 stable, 0.1–0.25 moderate shift, &gt; 0.25 significant.</li>
+<li><b>Kolmogorov–Smirnov test</b>: largest gap between two cumulative distributions (e.g. review length), with a p-value.</li>
+<li><b>Vocabulary coverage</b>: the share of incoming words that are in the vectorizer's vocabulary; a drop means the language moved.</li>
+<li><b>Real accuracy needs labels</b>: collect user feedback or label a small random sample weekly, compute metrics, and trigger retraining through the same DVC pipeline when performance drops (continuous training).</li>
+<li>Tools: Evidently AI, WhyLabs, or custom Prometheus metrics.</li>
+</ul>
+</section>
+
+<div class="part-head" id="part11">
+  <div class="eyebrow">Part 11</div>
+  <h2>Weak spots and code review</h2>
+  <p>"Yes, that's a limitation. Here's why it happened, and here's how I'd fix it."</p>
+</div>
+
+<section id="weak">
+<h2>44. Every weak spot, with the answer</h2>
+<div class="scroll"><table>
+<thead><tr><th>Weak spot</th><th>Why it matters</th><th>What to say / fix</th></tr></thead>
+<tbody>
+<tr><td>500 reviews</td><td>Noisy scores (CV F1 ±0.038, test ±8 points)</td><td>Kept small so CI retraining stays fast; architecture doesn't change with size; full 50k IMDB next, then a transformer</td></tr>
+<tr><td>Stop words delete "not"</td><td>"not good" → "good"</td><td>Custom stop list keeping negations; bigrams</td></tr>
+<tr><td>Cleaning duplicated, in a different order</td><td>Training–serving skew (§31)</td><td>One sklearn Pipeline logged as one model; parity test</td></tr>
+<tr><td>Leakage in the experiments</td><td>Experiment scores slightly optimistic</td><td>Fit vectorizers inside the split / inside a CV pipeline (the DVC pipeline already does)</td></tr>
+<tr><td>Experiment ≠ production config</td><td>80% isn't necessarily the deployed model's score</td><td>All hyper-parameters in params.yaml; quote the pipeline's MLflow metrics</td></tr>
+<tr><td>Test threshold 0.40</td><td>Almost any model passes</td><td>~0.70 thresholds + champion-vs-challenger gate</td></tr>
+<tr><td>App loads Staging</td><td>Mismatch with README; untested versions could be served</td><td>Load Production / <code>@champion</code> explicitly</td></tr>
+<tr><td>Model downloaded at pod start-up</td><td>DagsHub slow or down → pods can't start</td><td>Bake the model into the image in CI (or cache it) + readiness probe</td></tr>
+<tr><td><code>:latest</code> tag, unchanged manifest</td><td>Deploys don't restart pods; no clean rollback</td><td>Git-SHA tags; <code>kubectl set image</code> or <code>rollout restart</code></td></tr>
+<tr><td>Pipeline errors swallowed</td><td>Stages exit 0 on failure (§24)</td><td>Re-raise in <code>main()</code></td></tr>
+<tr><td>Data source is an untracked URL</td><td>Not truly reproducible</td><td>Version the raw CSV in the DVC remote</td></tr>
+<tr><td>No probes, 1 gunicorn worker</td><td>Traffic to not-ready pods; one request at a time</td><td>Readiness/liveness probes; more workers + multiprocess metrics</td></tr>
+<tr><td>Workflow runs on every push</td><td>Docs commits run the whole deploy</td><td>paths-ignore; branch filters; deploy only from main</td></tr>
+<tr><td>Long-lived AWS keys</td><td>Leak risk</td><td>GitHub OIDC + IAM role</td></tr>
+<tr><td>No drift or accuracy monitoring</td><td>Silent degradation</td><td>PSI/KS, vocabulary coverage, labelled samples, retrain triggers</td></tr>
+<tr><td>EKS may be overkill</td><td>Cost for 2 small pods</td><td>Chosen to learn orchestration; deleted after validating; App Runner/ECS for real traffic this size</td></tr>
+<tr><td>Registry stages deprecated</td><td>Future MLflow versions</td><td>Move to aliases</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="redesign">
+<h2>45. If you rebuilt it for production</h2>
+<ol class="num-list">
+<li><b>One model artifact</b>: sklearn Pipeline (clean → TF-IDF with bigrams and negations → LogReg), with a signature and input example, logged to MLflow.</li>
+<li><b>All config in params.yaml</b>, data versioned in the DVC remote, stages that fail loudly.</li>
+<li><b>Promotion gate</b>: champion vs challenger on a fixed holdout plus behavioural tests, then set the <code>@champion</code> alias.</li>
+<li><b>Build the model into the image</b> (or a versioned artifact the image references), tag images with the git SHA, deploy only from main with paths filters, OIDC auth.</li>
+<li><b>Kubernetes</b>: readiness/liveness probes, HPA, several gunicorn workers with multiprocess metrics, Prometheus Operator with per-pod scraping.</li>
+<li><b>Release strategies</b>: <b>blue-green</b> (two environments, switch traffic at once, instant rollback), <b>canary</b> (send 5–10% of traffic to the new model, compare metrics, then expand), <b>shadow</b> (the new model scores live traffic silently; only the old one answers).</li>
+<li><b>Continuous training</b>: scheduled or drift-triggered retraining through the same pipeline; human approval before the alias moves.</li>
+<li><b>Model upgrade</b> with more data: DistilBERT fine-tuned, served with ONNX Runtime or a dedicated model server; compare cost/latency against TF-IDF before switching.</li>
+</ol>
+</section>
+
+<div class="part-head" id="part12">
+  <div class="eyebrow">Part 12</div>
+  <h2>Practice</h2>
+  <p>Commands, questions, cheat sheet.</p>
+</div>
+
+<section id="cmds">
+<h2>46. Commands to know</h2>
+<pre><code># pipeline
+dvc repro                         # run what changed
+dvc status ; dvc dag              # what's stale / the graph
+dvc metrics show                  # reports/metrics.json
+dvc push / dvc pull               # sync data with s3://capstone-data-12
+
+# tests (need CAPSTONE_TEST in the environment)
+python -m unittest tests/test_model.py
+python -m unittest tests/test_flask_app.py
+python scripts/promote_model.py
+
+# container
+docker build -t capstone-app:latest .
+docker run -p 5000:5000 -e CAPSTONE_TEST=$CAPSTONE_TEST capstone-app:latest
+curl localhost:5000/metrics
+
+# kubernetes
+aws eks update-kubeconfig --region us-east-1 --name flask-app-cluster
+kubectl apply -f deployment.yaml
+kubectl get pods ; kubectl get svc ; kubectl logs &lt;pod&gt;
+kubectl rollout restart deployment/flask-app</code></pre>
+</section>
+
+<section id="qa">
+<h2>47. Interview questions, with answers</h2>
+<p>Answer out loud first, then open. Difficulty: <span class="diff e" style="margin:0">easy</span> <span class="diff m" style="margin:0">medium</span> <span class="diff h" style="margin:0">hard</span></p>
+<div class="qtools"><button id="open-all" type="button">Show all answers</button><button id="close-all" type="button">Hide all answers</button></div>
+
+<div class="qgroup">The project</div>
+<details class="q"><summary>Why this project?<span class="diff e">easy</span></summary><div class="a"><p>To learn the full lifecycle, not just modelling. Sentiment analysis is a clear ML problem, so effort could go into reproducibility, testing, deployment and monitoring, where real projects struggle.</p></div></details>
+<details class="q"><summary>What's the business value?<span class="diff e">easy</span></summary><div class="a"><p>Automatic sentiment tagging of reviews, tickets and comments: spot unhappy customers fast, track reception, route complaints, without people reading everything.</p></div></details>
+<details class="q"><summary>What was your role?<span class="diff e">easy</span></summary><div class="a"><p>Everything, alone: experiments, pipeline, tracking, tests, Docker, CI/CD, AWS deployment and monitoring.</p></div></details>
+<details class="q"><summary>One more month: what would you do?<span class="diff m">medium</span></summary><div class="a"><p>Full 50k IMDB, bigrams and negation-aware cleaning, one sklearn Pipeline artifact to remove skew, a champion-vs-challenger gate, git-SHA image tags with rollout restarts, probes, drift monitoring, and a DistilBERT comparison.</p></div></details>
+
+<div class="qgroup">Data and features</div>
+<details class="q"><summary>Is 500 reviews enough?<span class="diff e">easy</span></summary><div class="a"><p>Enough to prove the pipeline, small for NLP. Scores move with the split (CV F1 ±0.038; ±8 points on a 100-review test). I'd scale to 50k.</p></div></details>
+<details class="q"><summary>Why check class balance?<span class="diff e">easy</span></summary><div class="a"><p>With 90% positives, "always positive" scores 90% accuracy. Mine is 249/251, so accuracy is meaningful, but I still report precision, recall and F1.</p></div></details>
+<details class="q"><summary>What if the data were imbalanced?<span class="diff m">medium</span></summary><div class="a"><p>Stratified splits, per-class recall, F1 and PR-AUC instead of accuracy, class_weight='balanced', or resampling, and threshold tuning.</p></div></details>
+<details class="q"><summary>Explain TF-IDF and its formula.<span class="diff m">medium</span></summary><div class="a"><p>Term count in the review × idf = ln((1+n)/(1+df)) + 1, then each row L2-normalised. Words in every review get idf 1; rare ones get more weight.</p></div></details>
+<details class="q"><summary>Why did TF-IDF beat BoW for logistic regression?<span class="diff m">medium</span></summary><div class="a"><p>Raw counts let common words dominate; TF-IDF down-weights them and normalises length, highlighting discriminative words. F1 0.789 → 0.807.</p></div></details>
+<details class="q"><summary>What does max_features do, and is 50 a good value?<span class="diff m">medium</span></summary><div class="a"><p>Keeps the N most frequent terms. 50 is very small: it controls noise and size but drops many sentiment words. The tuned experiment used the full vocabulary; I'd tune it as a parameter.</p></div></details>
+<details class="q"><summary>Is removing stop words always good for sentiment?<span class="diff h">hard</span></summary><div class="a"><p>No. NLTK's list includes not/no/nor, so "not good" becomes "good". Keep negations or use bigrams.</p></div></details>
+<details class="q"><summary>What is data leakage? Did you have any?<span class="diff h">hard</span></summary><div class="a"><p>Test information influencing training. The pipeline fits TF-IDF on train only. The experiments fitted the vectorizer on all 500 reviews before splitting, a mild leak (vocabulary and IDF), so those scores are slightly optimistic.</p></div></details>
+<details class="q"><summary>Why save vectorizer.pkl separately?<span class="diff m">medium</span></summary><div class="a"><p>The model only understands the exact columns that fitted vectorizer produces. Serving must use the same vocabulary and IDF weights, otherwise columns mean different words.</p></div></details>
+<details class="q"><summary>Why not word embeddings or BERT?<span class="diff m">medium</span></summary><div class="a"><p>500 rows, a focus on MLOps, and serving cost. TF-IDF + LogReg is tiny, fast on CPU and explainable. With more data a fine-tuned DistilBERT would likely win on context and sarcasm.</p></div></details>
+
+<div class="qgroup">Model and evaluation</div>
+<details class="q"><summary>Explain logistic regression to a non-technical person.<span class="diff e">easy</span></summary><div class="a"><p>Every word has a positive or negative score; add up the scores of the review's words and turn the total into a probability. Above 50%, positive.</p></div></details>
+<details class="q"><summary>Why is it called regression?<span class="diff m">medium</span></summary><div class="a"><p>It's a linear regression on the log-odds, log(p/(1−p)) = w·x + b; a threshold turns the probability into a class.</p></div></details>
+<details class="q"><summary>What loss does it minimise?<span class="diff h">hard</span></summary><div class="a"><p>Log loss (binary cross-entropy) plus a regularisation term. It's convex, so the optimum is global.</p></div></details>
+<details class="q"><summary>What is C? L1 vs L2?<span class="diff m">medium</span></summary><div class="a"><p>C is the inverse regularisation strength: small = strong penalty. L1 zeroes some weights (feature selection); L2 shrinks all smoothly. C=10, L2 won; C=0.1 predicted almost everything negative.</p></div></details>
+<details class="q"><summary>What is GridSearchCV doing exactly?<span class="diff m">medium</span></summary><div class="a"><p>For each of 6 combinations, 5-fold CV on the training data (30 fits), scored by F1; picks the best mean, then refits it on all training data.</p></div></details>
+<details class="q"><summary>Precision and recall with your numbers.<span class="diff e">easy</span></summary><div class="a"><p>Of 56 predicted positive, 45 were right: precision 0.80. Of 54 truly positive, 45 found: recall 0.83.</p></div></details>
+<details class="q"><summary>Why the harmonic mean for F1?<span class="diff m">medium</span></summary><div class="a"><p>It punishes imbalance: precision 0.94 with recall 0.54 gives F1 ≈ 0.68, so one strong metric can't hide a weak one.</p></div></details>
+<details class="q"><summary>What is ROC-AUC?<span class="diff m">medium</span></summary><div class="a"><p>The probability a random positive is ranked above a random negative; the area under TPR vs FPR across thresholds. 0.5 random, 1 perfect. The pipeline logs it.</p></div></details>
+<details class="q"><summary>Test F1 0.818 but CV F1 0.726. Which do you trust?<span class="diff h">hard</span></summary><div class="a"><p>CV: it averages 5 splits. One 100-review split happened to be easy. I report both and trust CV.</p></div></details>
+<details class="q"><summary>Is 80% vs 70.4% a real improvement?<span class="diff h">hard</span></summary><div class="a"><p>Probably, but not proven by these numbers: ±8 points at n=100, different splits and vectorizers, and mild leakage. I'd score both on the same rows and use McNemar.</p></div></details>
+<details class="q"><summary>How would you change the 0.5 threshold?<span class="diff m">medium</span></summary><div class="a"><p>Use predict_proba and the precision-recall curve; pick the threshold that matches the cost of false positives vs false negatives.</p></div></details>
+<details class="q"><summary>Why did XGBoost do worst?<span class="diff m">medium</span></summary><div class="a"><p>Powerful models with many parameters overfit 400 training rows; linear models usually win on small, sparse text.</p></div></details>
+
+<div class="qgroup">Pipeline, tracking, registry</div>
+<details class="q"><summary>What is DVC, and how is it different from Git?<span class="diff e">easy</span></summary><div class="a"><p>Git versions code; DVC versions data, models and pipelines, storing big files in a content-addressed cache and a remote (S3) with small pointers in Git. dvc.yaml defines stages; dvc.lock stores hashes.</p></div></details>
+<details class="q"><summary>Change max_features and run dvc repro: what happens?<span class="diff m">medium</span></summary><div class="a"><p>Ingestion and preprocessing are skipped; feature engineering and every stage after it rerun.</p></div></details>
+<details class="q"><summary>Your stages catch all exceptions. Problem?<span class="diff h">hard</span></summary><div class="a"><p>Yes: they print and exit 0, so DVC and CI think they succeeded and the error surfaces later, somewhere confusing. main() should re-raise.</p></div></details>
+<details class="q"><summary>How do you make an experiment reproducible?<span class="diff m">medium</span></summary><div class="a"><p>Fixed seeds, pinned versions, parameters in config, versioned data, every run logged, everything run from scripts not notebook cells.</p></div></details>
+<details class="q"><summary>Why MLflow instead of a spreadsheet?<span class="diff e">easy</span></summary><div class="a"><p>It logs params, metrics, code version and the model file together, compares runs, and turns the best run into a versioned deployable model.</p></div></details>
+<details class="q"><summary>What does the registry give you? How do you roll back?<span class="diff m">medium</span></summary><div class="a"><p>Versions with stages. Consumers ask for "Production" instead of a file. Rollback: move the previous version back to Production and restart the pods.</p></div></details>
+<details class="q"><summary>MLflow stages are deprecated. What replaces them?<span class="diff h">hard</span></summary><div class="a"><p>Aliases (e.g. @champion, @challenger) and tags. I'd load models:/my_model@champion and move the alias on promotion.</p></div></details>
+<details class="q"><summary>Which model does your app actually load?<span class="diff h">hard</span></summary><div class="a"><p>The newest Staging version (README says Production). CI promotes right after testing, so it's usually the same version, but I'd load Production/@champion explicitly.</p></div></details>
+
+<div class="qgroup">Serving, Docker, CI/CD</div>
+<details class="q"><summary>Walk me through what happens on git push.<span class="diff e">easy</span></summary><div class="a"><p>Checkout, Python, pip cache, install; dvc repro (retrain + register to Staging); model tests; promote to Production; Flask tests; ECR login; docker build, tag, push; kubeconfig; create/update the Secret; kubectl apply.</p></div></details>
+<details class="q"><summary>After a push, are the pods running the new image?<span class="diff h">hard</span></summary><div class="a"><p>Not necessarily: the tag is always :latest and the manifest doesn't change, so kubectl apply is a no-op and pods aren't restarted. Fix with git-SHA tags or kubectl rollout restart.</p></div></details>
+<details class="q"><summary>CI vs CD?<span class="diff e">easy</span></summary><div class="a"><p>CI builds and tests every change automatically; CD releases changes that pass to production automatically.</p></div></details>
+<details class="q"><summary>What is training–serving skew? Do you have it?<span class="diff h">hard</span></summary><div class="a"><p>Serving transforms inputs differently from training. Yes: the app cleans in a different order (URLs removed last), so URLs leave tokens like "http imdb com". Fix: one Pipeline artifact plus a parity test.</p></div></details>
+<details class="q"><summary>Flask's server vs Gunicorn?<span class="diff e">easy</span></summary><div class="a"><p>Flask's is a single-process dev server. Gunicorn is a production WSGI server with a master and worker processes. Mine runs 1 sync worker by default; I'd add workers and switch Prometheus to multiprocess mode.</p></div></details>
+<details class="q"><summary>Why Docker? How would you improve your Dockerfile?<span class="diff m">medium</span></summary><div class="a"><p>Same environment everywhere. Improvements: copy requirements first for layer caching, --no-cache-dir, a non-root user, explicit gunicorn/scikit-learn pins, and bake the model in.</p></div></details>
+<details class="q"><summary>How do you handle secrets?<span class="diff m">medium</span></summary><div class="a"><p>GitHub Secrets in CI; a Kubernetes Secret injected via secretKeyRef in pods; nothing in code or images. Next steps: OIDC instead of access keys, KMS encryption for Kubernetes Secrets.</p></div></details>
+<details class="q"><summary>Hardest CI bug?<span class="diff e">easy</span></summary><div class="a"><p>CI hanging because dagshub.init wanted a browser login. I read the logs, saw it waiting on OAuth, and switched to token auth from secrets. Automation must be non-interactive.</p></div></details>
+
+<div class="qgroup">Kubernetes, AWS, monitoring</div>
+<details class="q"><summary>Why Kubernetes instead of one server?<span class="diff m">medium</span></summary><div class="a"><p>Keeps 2 replicas running, restarts crashed pods, spreads traffic, scales easily. Honestly one server would do for this traffic; I used EKS to learn production orchestration and deleted it after to control cost.</p></div></details>
+<details class="q"><summary>Pod vs Deployment vs Service?<span class="diff e">easy</span></summary><div class="a"><p>A pod runs the container; a Deployment keeps N pods running and rolls out updates; a Service gives them one stable address (here an AWS load balancer).</p></div></details>
+<details class="q"><summary>Requests vs limits?<span class="diff m">medium</span></summary><div class="a"><p>Requests are reserved for scheduling (256Mi, 250m CPU); limits are caps (512Mi, 1 CPU). Over the memory limit the container is OOM-killed; over CPU it's throttled.</p></div></details>
+<details class="q"><summary>Readiness vs liveness probe?<span class="diff m">medium</span></summary><div class="a"><p>Readiness: may this pod receive traffic (important while the model downloads). Liveness: is it stuck, restart it. I'd add both.</p></div></details>
+<details class="q"><summary>How would you autoscale?<span class="diff m">medium</span></summary><div class="a"><p>A Horizontal Pod Autoscaler on CPU or on request rate from Prometheus, with min/max replicas.</p></div></details>
+<details class="q"><summary>What do you monitor, and why a histogram?<span class="diff e">easy</span></summary><div class="a"><p>Request count, latency (histogram, for p95/p99 rather than a misleading average), and predictions per class.</p></div></details>
+<details class="q"><summary>Write a PromQL query for p95 latency.<span class="diff h">hard</span></summary><div class="a"><p>histogram_quantile(0.95, sum by (le) (rate(app_request_latency_seconds_bucket[5m]))).</p></div></details>
+<details class="q"><summary>How would you detect drift?<span class="diff h">hard</span></summary><div class="a"><p>Track the prediction mix, input length and vocabulary coverage; compare live vs training distributions with PSI or KS; alert in Grafana; label samples to measure real accuracy and retrain through the pipeline.</p></div></details>
+<details class="q"><summary>Data drift vs concept drift?<span class="diff m">medium</span></summary><div class="a"><p>Data drift: inputs change. Concept drift: the input→label relationship changes. Both degrade the model over time.</p></div></details>
+<details class="q"><summary>Canary vs blue-green vs shadow?<span class="diff h">hard</span></summary><div class="a"><p>Canary: a small share of traffic to the new model, then expand. Blue-green: two full environments, switch all at once, instant rollback. Shadow: the new model scores live traffic silently for comparison.</p></div></details>
+
+<div class="qgroup">Behavioural</div>
+<details class="q"><summary>What did you learn?<span class="diff e">easy</span></summary><div class="a"><p>The model is the smaller part; reproducibility, testing, secrets, deployment and monitoring take most of the effort. Debug CI one step at a time and read logs carefully.</p></div></details>
+<details class="q"><summary>What would you do differently?<span class="diff m">medium</span></summary><div class="a"><p>One shared preprocessing artifact from day one, negation-aware features, all params in params.yaml, real test thresholds and a promotion gate, path filters, SHA image tags, and failing loudly in every stage.</p></div></details>
+<details class="q"><summary>How did you decide which model to deploy?<span class="diff e">easy</span></summary><div class="a"><p>Evidence: baseline, controlled 10-run comparison, cross-validated tuning, all tracked in MLflow. Best F1, also weighing speed and simplicity.</p></div></details>
+<details class="q"><summary>How did you manage cloud cost?<span class="diff e">easy</span></summary><div class="a"><p>Deleted the cluster, node group and ECR images right after validating: EKS bills hourly even when idle.</p></div></details>
+</section>
+
+<section id="cheat">
+<h2>48. One-page cheat sheet</h2>
+<div class="scroll"><table>
+<thead><tr><th>What</th><th>Remember</th></tr></thead>
+<tbody>
+<tr><td>Data</td><td>500 IMDB reviews, 249 pos / 251 neg. Pipeline 75/25 (375/125); experiments 80/20; random_state 42</td></tr>
+<tr><td>Baseline</td><td>BoW-150 + LogReg: acc 70.4%, P 78.0%, R 65.7%, F1 0.713</td></tr>
+<tr><td>Champion (experiment)</td><td>TF-IDF + LogReg C=10 L2 liblinear: acc 80.0%, P 80.4%, R 83.3%, F1 0.818; CV F1 0.726 ± 0.038</td></tr>
+<tr><td>Confusion</td><td>TP 45, FN 9, FP 11, TN 35 (n = 100)</td></tr>
+<tr><td>Experiments</td><td>4 groups, 36+ runs; 10-run comparison; 6 × 5-fold grid search</td></tr>
+<tr><td>Pipeline</td><td>6 DVC stages; max_features 50; test_size 0.25; S3 remote; metrics: acc, P, R, AUC</td></tr>
+<tr><td>Registry</td><td>my_model: register → Staging; CI: tests → promote to Production (old → Archived)</td></tr>
+<tr><td>Tests</td><td>load, signature, performance ≥ 0.40 (weak); Flask home + predict</td></tr>
+<tr><td>Serving</td><td>Flask + gunicorn (1 worker), port 5000, model from DagsHub at start-up, vectorizer in image</td></tr>
+<tr><td>Deploy</td><td>ECR → EKS, 2 replicas, 256–512Mi, 0.25–1 CPU, LoadBalancer, Secret via secretKeyRef</td></tr>
+<tr><td>Monitoring</td><td>Counter requests, Histogram latency, Counter predictions per class → Prometheus → Grafana</td></tr>
+<tr><td>CI journey</td><td>22 runs; first fully green #16; browser auth → token; pins; import side effects; secrets; paths-ignore</td></tr>
+<tr><td>Self-found issues</td><td>Experiment leakage, cleaning-order skew, errors swallowed in stages, :latest no-op deploys, Staging vs Production, 0.40 threshold</td></tr>
+<tr><td>Three sentences</td><td>"The model is 20% of the work." · "Chosen on tracked evidence: baseline, comparison, CV tuning." · "Automation must be non-interactive."</td></tr>
+</tbody></table></div>
+</section>
+
+<footer>Built from the code of <a href="https://github.com/SATYAJIT2747/MLOPS-PROJ-CI-CD">MLOPS-PROJ-CI-CD</a> (src/, notebooks/, tests/, flask_app/, ci.yaml, Dockerfile, deployment.yaml, README) and its MLflow experiment results.</footer>
+</main>
+</div>
+
+<script>
+(function () {
+  var qs = function () { return document.querySelectorAll('details.q'); };
+  document.getElementById('open-all').addEventListener('click', function () { qs().forEach(function (d) { d.open = true; }); });
+  document.getElementById('close-all').addEventListener('click', function () { qs().forEach(function (d) { d.open = false; }); });
+  var root = document.documentElement, key = 'mlops-guide-theme';
+  try { var saved = localStorage.getItem(key); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  document.getElementById('theme').addEventListener('click', function () {
+    var cur = root.getAttribute('data-theme') ||
+      (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var next = cur === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem(key, next); } catch (e) {}
+  });
+  // on phones, close the contents list after tapping a link
+  var tocd = document.getElementById('tocd');
+  if (window.matchMedia && window.matchMedia('(max-width: 860px)').matches) tocd.open = false;
+  document.querySelectorAll('nav.toc a').forEach(function (a) {
+    a.addEventListener('click', function () { if (window.matchMedia('(max-width: 860px)').matches) tocd.open = false; });
+  });
+})();
+</script>
+</body>
+</html>
